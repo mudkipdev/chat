@@ -1,6 +1,6 @@
 <script lang="ts">
-    import PromptBox from "../components/PromptBox.svelte";
-    import { pickGreeting } from "../lib/greeting";
+    import PromptBox from "$lib/components/PromptBox.svelte";
+    import { pickGreeting } from "$lib/greeting";
 
     const greeting = pickGreeting({ kind: "named", name: "mudkip" });
 </script>

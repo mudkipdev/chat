@@ -6,24 +6,25 @@ export type GlobalState = {
 
 const STORAGE_KEY = "global-state";
 
-const defaults: GlobalState = {
+const DEFAULTS: GlobalState = {
     model: "gemma4:e2b",
     reasoning: false,
     webSearch: false,
 };
 
-function load(): GlobalState {
-    if (typeof localStorage === "undefined") return { ...defaults };
+function loadState(): GlobalState {
+    if (typeof localStorage === "undefined") return { ...DEFAULTS };
+
     try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        if (!raw) return { ...defaults };
-        return { ...defaults, ...JSON.parse(raw) };
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (!stored) return { ...DEFAULTS };
+        return { ...DEFAULTS, ...JSON.parse(stored) };
     } catch {
-        return { ...defaults };
+        return { ...DEFAULTS };
     }
 }
 
-export const globalState: GlobalState = $state(load());
+export const globalState: GlobalState = $state(loadState());
 
 if (typeof window !== "undefined") {
     $effect.root(() => {

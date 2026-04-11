@@ -10,6 +10,20 @@ export type Chat = {
 
 export const chats = $state<Record<string, Chat>>({});
 
+const activeStreams: Record<string, AbortController> = {};
+
+export function isStreaming(chatId: string): boolean {
+    const chat = chats[chatId];
+    if (!chat) return false;
+
+    const last = chat.messages[chat.messages.length - 1];
+    return last?.role === "assistant" && last.done === false;
+}
+
+export function stopStream(chatId: string): void {
+    activeStreams[chatId]?.abort();
+}
+
 export function createChat(content: string): string {
     const id = crypto.randomUUID();
     chats[id] = {
@@ -19,38 +33,46 @@ export function createChat(content: string): string {
     return id;
 }
 
-export function appendUserMessage(chatId: string, content: string) {
-    const chat = chats[chatId];
-    if (!chat) return;
-    chat.messages.push({ role: "user", content });
+export function appendUserMessage(chatId: string, content: string): void {
+    chats[chatId]?.messages.push({ role: "user", content });
 }
 
-export async function streamReply(chatId: string, model: string) {
+export async function streamReply(chatId: string, model: string): Promise<void> {
     const chat = chats[chatId];
     if (!chat) return;
+
     const history: ChatMessage[] = [
         { role: "system", content: createPrompt() },
         ...chat.messages.map(({ role, content }) => ({ role, content })),
     ];
+
     chat.messages.push({ role: "assistant", content: "", done: false });
-    const assistant = chat.messages[chat.messages.length - 1];
+    const reply = chat.messages[chat.messages.length - 1];
+
+    const controller = new AbortController();
+    activeStreams[chatId] = controller;
+
     try {
-        for await (const chunk of chatStream(model, history)) {
-            assistant.content += chunk;
+        for await (const chunk of chatStream(model, history, controller.signal)) {
+            reply.content += chunk;
         }
-    } catch (e) {
-        const err = e instanceof Error ? e.message : String(e);
-        assistant.content += `\n\n[error: ${err}]`;
+    } catch (error) {
+        if (!controller.signal.aborted) {
+            const message = error instanceof Error ? error.message : String(error);
+            reply.content += `\n\n[error: ${message}]`;
+        }
     } finally {
-        assistant.done = true;
+        reply.done = true;
+        if (activeStreams[chatId] === controller) delete activeStreams[chatId];
     }
 }
 
-export function retryLast(chatId: string, model: string) {
+export function retryLast(chatId: string, model: string): Promise<void> | undefined {
     const chat = chats[chatId];
     if (!chat) return;
-    if (chat.messages[chat.messages.length - 1]?.role === "assistant") {
-        chat.messages.pop();
-    }
+
+    const last = chat.messages[chat.messages.length - 1];
+    if (last?.role === "assistant") chat.messages.pop();
+
     return streamReply(chatId, model);
 }

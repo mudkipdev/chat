@@ -1,12 +1,12 @@
 <script lang="ts">
     import { onMount } from "svelte";
     import { Check, ChevronDown, Icon } from "@xylightdev/svelte-hero-icons";
-    import { globalState } from "../lib/state.svelte";
     import {
         fetchModels,
         parameterCount,
         type OllamaModel,
-    } from "../lib/ollama";
+    } from "$lib/ollama";
+    import { globalState } from "$lib/state.svelte";
 
     let { openUp = false }: { openUp?: boolean } = $props();
 
@@ -18,12 +18,14 @@
     let loading = $state(true);
     let error = $state<string | null>(null);
 
+    const current = $derived(
+        models.find((model) => model.name === globalState.model) ?? models[0],
+    );
+
     onMount(async () => {
         try {
             const fetched = await fetchModels();
-            models = fetched.sort(
-                (a, b) => parameterCount(b) - parameterCount(a),
-            );
+            models = fetched.sort((a, b) => parameterCount(b) - parameterCount(a));
         } catch (e) {
             error = e instanceof Error ? e.message : "Failed to load models";
         } finally {
@@ -31,37 +33,33 @@
         }
     });
 
-    const current = $derived(
-        models.find((m) => m.name === globalState.model) ?? models[0],
-    );
-
-    function select(name: string) {
+    function selectModel(name: string) {
         globalState.model = name;
         open = false;
     }
 
-    function handleDocumentMouseDown(event: MouseEvent) {
-        if (!open) return;
+    function closeOnOutsideClick(event: MouseEvent) {
         const target = event.target as Node | null;
         if (!target) return;
         if (trigger?.contains(target) || panel?.contains(target)) return;
         open = false;
     }
 
-    function handleKeyDown(event: KeyboardEvent) {
-        if (event.key === "Escape" && open) {
-            open = false;
-            trigger?.focus();
-        }
+    function closeOnEscape(event: KeyboardEvent) {
+        if (event.key !== "Escape") return;
+        open = false;
+        trigger?.focus();
     }
 
     $effect(() => {
         if (!open) return;
-        document.addEventListener("mousedown", handleDocumentMouseDown);
-        document.addEventListener("keydown", handleKeyDown);
+
+        document.addEventListener("mousedown", closeOnOutsideClick);
+        document.addEventListener("keydown", closeOnEscape);
+
         return () => {
-            document.removeEventListener("mousedown", handleDocumentMouseDown);
-            document.removeEventListener("keydown", handleKeyDown);
+            document.removeEventListener("mousedown", closeOnOutsideClick);
+            document.removeEventListener("keydown", closeOnEscape);
         };
     });
 </script>
@@ -71,7 +69,7 @@
         bind:this={trigger}
         type="button"
         onclick={() => (open = !open)}
-        class="flex items-center gap-1 rounded-md px-3 py-2 text-sm text-text-300 transition-colors duration-100 hover:bg-bg-200"
+        class="flex cursor-pointer items-center gap-1 rounded-md px-3 py-2 text-sm text-text-300 transition-colors duration-100 hover:bg-bg-200"
     >
         <span>{current?.name ?? globalState.model}</span>
         <Icon src={ChevronDown} size="16" />
@@ -90,24 +88,19 @@
             {:else if error}
                 <div class="px-3 py-2 text-sm text-danger-100">{error}</div>
             {:else if models.length === 0}
-                <div class="px-3 py-2 text-sm text-text-400">
-                    No models found
-                </div>
+                <div class="px-3 py-2 text-sm text-text-400">No models found</div>
             {:else}
                 {#each models as model (model.digest)}
                     <button
                         type="button"
                         role="menuitem"
-                        onclick={() => select(model.name)}
-                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-bg-200"
+                        onclick={() => selectModel(model.name)}
+                        class="flex w-full cursor-pointer items-center justify-between rounded-lg px-3 py-2 text-left hover:bg-bg-200"
                     >
                         <div class="text-sm text-text-100">{model.name}</div>
+
                         {#if model.name === globalState.model}
-                            <Icon
-                                src={Check}
-                                size="20"
-                                class="text-accent-100"
-                            />
+                            <Icon src={Check} size="20" class="text-accent-100" />
                         {/if}
                     </button>
                 {/each}

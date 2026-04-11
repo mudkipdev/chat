@@ -3,151 +3,122 @@ export type Identity =
     | { kind: "incognito" }
     | { kind: "unauthenticated" };
 
-function hashString(string: string): number {
-    let t = 0;
+type TimeOfDay = "morning" | "afternoon" | "evening" | "lateNight";
 
-    for (let i = 0; i < string.length; i++) {
-        t = (t << 5) - t + string.charCodeAt(i);
-        t &= 0xffffffff;
+const WEEKDAY_GREETINGS: Record<number, string> = {
+    1: "Happy Monday",
+    2: "Happy Tuesday",
+    3: "Happy Wednesday",
+    4: "Happy Thursday",
+    5: "Happy Friday",
+};
+
+function hash(input: string): number {
+    let value = 0;
+
+    for (let i = 0; i < input.length; i++) {
+        value = (value << 5) - value + input.charCodeAt(i);
+        value &= 0xffffffff;
     }
 
-    return Math.abs(t);
+    return Math.abs(value);
+}
+
+function timeOfDay(hour: number): TimeOfDay {
+    if (hour > 0 && hour < 5) return "lateNight";
+    if (hour > 5 && hour < 12) return "morning";
+    if (hour > 12 && hour < 18) return "afternoon";
+    return "evening";
+}
+
+function isGoldenHour(date: Date, hour: number): boolean {
+    const seed = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}_golden_hour`;
+    const earlySlot = hash(seed) % 2 === 0;
+    return earlySlot ? hour > 16 && hour < 18 : hour > 18 && hour < 19;
+}
+
+function buildPool(
+    identity: Identity,
+    time: TimeOfDay,
+    day: number,
+    goldenHour: boolean,
+): string[] {
+    const pool: string[] = [];
+    const named = identity.kind === "named";
+    const tail = named ? `, ${identity.name}` : "";
+
+    if (identity.kind === "incognito") {
+        if (time === "morning") pool.push("Let's chat incognito");
+        if (time === "afternoon") pool.push("Greetings, whoever you are");
+        if (time === "evening" || time === "lateNight") pool.push("You're incognito");
+        return pool;
+    }
+
+    if (time === "morning") {
+        pool.push(`Good morning${tail}`);
+        pool.push(`Welcome${tail}`);
+        pool.push(`Hey there${tail}`);
+
+        const weekday = WEEKDAY_GREETINGS[day];
+        if (weekday) pool.push(`${weekday}${tail}`);
+
+        if (day === 6) {
+            pool.push(`Welcome to the weekend${tail}`);
+            pool.push(`Happy Saturday${tail}`);
+        }
+
+        if (day === 0) {
+            pool.push(`Sunday session${tail}?`);
+            pool.push(`Happy Sunday${tail}`);
+        }
+
+        pool.push("Coffee and Claude time?");
+    }
+
+    if (time === "afternoon") {
+        pool.push(`Good afternoon${tail}`);
+        pool.push(`Afternoon${tail}`);
+        pool.push(named ? `Back at it, ${identity.name}` : "Back at it!");
+    }
+
+    if (time === "evening") {
+        pool.push(`Good evening${tail}`);
+        pool.push(`Evening${tail}`);
+        if (named) pool.push(`${identity.name} returns!`);
+    }
+
+    if (time === "lateNight") {
+        pool.push(named ? `It's late-night ${identity.name}` : "It's late-night");
+        pool.push("Moonlit chat?");
+        pool.push("Hello, night owl");
+        pool.push("What shall we think through?");
+    }
+
+    if (goldenHour) pool.push("Golden hour thinking");
+
+    return pool;
 }
 
 export function pickGreeting(identity: Identity): string {
     const date = new Date();
     const hour = date.getHours();
     const day = date.getDay();
+    const time = timeOfDay(hour);
+    const goldenHour = isGoldenHour(date, hour);
 
-    const morning = hour > 5 && hour < 12;
-    const afternoon = hour > 12 && hour < 18;
-    const evening = hour > 18 && hour < 24;
-    const lateNight = hour > 0 && hour < 5;
-
-    const goldenSeed = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}_golden_hour`;
-    const isGoldenDay = hashString(goldenSeed) % 2 === 0;
-    const goldenHour = isGoldenDay
-        ? hour > 16 && hour < 18
-        : hour > 18 && hour < 19;
-
-    const pool: string[] = [];
-
-    if (identity.kind === "named") {
-        const n = identity.name;
-        if (morning) {
-            pool.push(`Good morning, ${n}`);
-            pool.push(`Welcome, ${n}`);
-            pool.push(`Hey there, ${n}`);
-
-            if (day === 1) pool.push(`Happy Monday, ${n}`);
-            if (day === 2) pool.push(`Happy Tuesday, ${n}`);
-            if (day === 3) pool.push(`Happy Wednesday, ${n}`);
-            if (day === 4) pool.push(`Happy Thursday, ${n}`);
-            if (day === 5) pool.push(`Happy Friday, ${n}`);
-
-            if (day === 6) {
-                pool.push(`Welcome to the weekend, ${n}`);
-                pool.push(`Happy Saturday, ${n}`);
-            }
-
-            if (day === 0) {
-                pool.push(`Sunday session, ${n}?`);
-                pool.push(`Happy Sunday, ${n}`);
-            }
-        }
-
-        if (afternoon) {
-            pool.push(`Good afternoon, ${n}`);
-            pool.push(`Afternoon, ${n}`);
-            pool.push(`Back at it, ${n}`);
-        }
-
-        if (evening) {
-            pool.push(`${n} returns!`);
-            pool.push(`Good evening, ${n}`);
-            pool.push(`Evening, ${n}`);
-        }
-
-        if (lateNight) {
-            pool.push(`It's late-night ${n}`);
-        }
-    }
-
-    if (identity.kind === "unauthenticated") {
-        if (morning) {
-            pool.push("Good morning");
-            pool.push("Welcome");
-            pool.push("Hey there");
-
-            if (day === 1) pool.push("Happy Monday");
-            if (day === 2) pool.push("Happy Tuesday");
-            if (day === 3) pool.push("Happy Wednesday");
-            if (day === 4) pool.push("Happy Thursday");
-            if (day === 5) pool.push("Happy Friday");
-
-            if (day === 6) {
-                pool.push("Welcome to the weekend");
-                pool.push("Happy Saturday!");
-            }
-
-            if (day === 0) {
-                pool.push("Sunday session?");
-                pool.push("Happy Sunday");
-            }
-        }
-
-        if (afternoon) {
-            pool.push("Good afternoon");
-            pool.push("Afternoon");
-            pool.push("Back at it!");
-        }
-
-        if (evening) {
-            pool.push("Evening");
-            pool.push("Good evening");
-        }
-
-        if (lateNight) {
-            pool.push("It's late-night");
-        }
-    }
-
-    if (identity.kind !== "incognito") {
-        if (morning) pool.push("Coffee and Claude time?");
-        if (goldenHour) pool.push("Golden hour thinking");
-
-        if (lateNight) {
-            pool.push("Moonlit chat?");
-            pool.push("Hello, night owl");
-            pool.push("What shall we think through?");
-        }
-    }
-
-    if (identity.kind === "incognito") {
-        if (morning) pool.push("Let's chat incognito");
-        if (afternoon) pool.push("Greetings, whoever you are");
-        if (evening || lateNight) pool.push("You're incognito");
-    }
+    const pool = buildPool(identity, time, day, goldenHour);
 
     if (pool.length === 0) {
         pool.push(identity.kind === "named" ? `Hey there, ${identity.name}` : "Hey there");
     }
 
-    const bucket = lateNight
-        ? "late_night"
-        : morning
-            ? "morning"
-            : afternoon
-                ? "afternoon"
-                : "evening";
-
     const persona =
         identity.kind === "incognito"
             ? "incognito"
             : identity.kind === "named"
-                ? "with_name"
-                : "no_name";
+              ? "with_name"
+              : "no_name";
 
-    const seed = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}_${bucket}_${persona}`;
-    return pool[hashString(seed) % pool.length];
+    const seed = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}_${time}_${persona}`;
+    return pool[hash(seed) % pool.length];
 }
