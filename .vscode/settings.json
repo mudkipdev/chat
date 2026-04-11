@@ -1,0 +1,12 @@
+{
+	"files.associations": {
+		"*.css": "tailwindcss"
+	},
+	"files.exclude": {
+		".svelte-kit": true,
+		"node_modules": true
+	},
+	"tailwindCSS.experimental.classRegex": [
+		["styles\\s*[:=]\\s*\\{[\\s\\S]*?\\}", "\"([^\"]*)\""]
+	]
+}

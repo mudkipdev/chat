@@ -1,0 +1,25 @@
+{
+    "name": "chat",
+    "private": true,
+    "version": "0.0.1",
+    "type": "module",
+    "scripts": {
+        "dev": "bunx --bun vite dev",
+        "build": "bunx --bun vite build",
+        "preview": "bunx --bun vite preview",
+        "db:push": "drizzle-kit push",
+        "db:studio": "drizzle-kit studio"
+    },
+    "devDependencies": {
+        "typescript": "^5.9.3",
+        "vite": "^7.3.1",
+        "svelte": "^5.51.0",
+        "svelte-check": "^4.4.2",
+        "@sveltejs/kit": "^2.50.2",
+        "@sveltejs/vite-plugin-svelte": "^6.2.4",
+        "@sveltejs/adapter-auto": "^7.0.0",
+        "tailwindcss": "^4.1.18",
+        "@tailwindcss/vite": "^4.1.18",
+        "@xylightdev/svelte-hero-icons": "^2.2.10"
+    }
+}
