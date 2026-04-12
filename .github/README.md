@@ -1,2 +1,11 @@
 # chat
 Local AI chat interface
+
+## Features
+- [X] Sending messages and streaming responses
+- [X] Choosing between multiple models running locally
+- [X] Saving conversations
+- [X] Extended thinking for better answers
+- [ ] Accounts
+
+![A screenshot of the UI](https://files.catbox.moe/em1nt8.png)
