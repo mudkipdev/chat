@@ -2,7 +2,7 @@
     import PromptBox from "$lib/components/PromptBox.svelte";
     import { pickGreeting } from "$lib/greeting";
 
-    const greeting = pickGreeting({ kind: "named", name: "mudkip" });
+    const greeting = pickGreeting({ kind: "unauthenticated" });
 </script>
 
 <div class="flex min-h-screen flex-col items-center gap-10 px-6 pt-[26vh]">

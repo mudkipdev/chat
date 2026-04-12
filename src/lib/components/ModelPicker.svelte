@@ -26,6 +26,12 @@
         try {
             const fetched = await fetchModels();
             models = fetched.sort((a, b) => parameterCount(b) - parameterCount(a));
+            if (
+                models.length > 0 &&
+                !models.some((m) => m.name === globalState.model)
+            ) {
+                globalState.model = models[0].name;
+            }
         } catch (e) {
             error = e instanceof Error ? e.message : "Failed to load models";
         } finally {

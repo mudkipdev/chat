@@ -1,15 +1,17 @@
 export type GlobalState = {
     model: string;
-    reasoning: boolean;
+    thinking: boolean;
     webSearch: boolean;
+    sidebarCollapsed: boolean;
 };
 
 const STORAGE_KEY = "global-state";
 
 const DEFAULTS: GlobalState = {
-    model: "gemma4:e2b",
-    reasoning: false,
+    model: "",
+    thinking: false,
     webSearch: false,
+    sidebarCollapsed: false,
 };
 
 function loadState(): GlobalState {

@@ -1,8 +1,18 @@
 <script lang="ts">
     import { goto } from "$app/navigation";
-    import { ArrowUp, Icon, Plus, Stop } from "@xylightdev/svelte-hero-icons";
+    import {
+        ArrowUp,
+        GlobeAlt,
+        Icon,
+        LightBulb,
+        Plus,
+        Stop,
+        XMark,
+    } from "@xylightdev/svelte-hero-icons";
     import {
         appendUserMessage,
+        chatError,
+        clearChatError,
         createChat,
         isStreaming,
         stopStream,
@@ -18,26 +28,118 @@
         openUp = false,
     }: { chatId?: string; placeholder?: string; openUp?: boolean } = $props();
 
+    type Attachment = {
+        id: string;
+        name: string;
+        previewUrl: string;
+        status: "uploading" | "ready" | "error";
+        base64?: string;
+    };
+
     let draft = $state("");
+    let attachments = $state<Attachment[]>([]);
     let textarea: HTMLTextAreaElement;
+    let fileInput: HTMLInputElement;
+
+    function openFilePicker() {
+        fileInput?.click();
+    }
+
+    async function uploadFile(attachment: Attachment, file: File) {
+        try {
+            const form = new FormData();
+            form.append("file", file);
+            const response = await fetch("/api/uploads", {
+                method: "POST",
+                body: form,
+            });
+            if (!response.ok) {
+                const text = await response.text().catch(() => "");
+                chatError.message = `upload: ${text || response.status}`;
+                attachments = attachments.filter((a) => a.id !== attachment.id);
+                URL.revokeObjectURL(attachment.previewUrl);
+                return;
+            }
+            const data = (await response.json()) as { base64: string };
+            const target = attachments.find((a) => a.id === attachment.id);
+            if (target) {
+                target.base64 = data.base64;
+                target.status = "ready";
+            }
+        } catch (error) {
+            const detail = error instanceof Error ? error.message : String(error);
+            chatError.message = `upload: ${detail}`;
+            attachments = attachments.filter((a) => a.id !== attachment.id);
+            URL.revokeObjectURL(attachment.previewUrl);
+        }
+    }
+
+    function handleFilesSelected(event: Event) {
+        const input = event.currentTarget as HTMLInputElement;
+        if (!input.files) return;
+
+        const picked = Array.from(input.files).filter((f) =>
+            f.type.startsWith("image/"),
+        );
+        input.value = "";
+        if (picked.length === 0) return;
+
+        const newAttachments: Attachment[] = picked.map((file) => ({
+            id: crypto.randomUUID(),
+            name: file.name,
+            previewUrl: URL.createObjectURL(file),
+            status: "uploading",
+        }));
+        attachments = [...attachments, ...newAttachments];
+
+        newAttachments.forEach((attachment, i) => {
+            uploadFile(attachment, picked[i]);
+        });
+    }
+
+    function removeAttachment(id: string) {
+        const target = attachments.find((a) => a.id === id);
+        if (target) URL.revokeObjectURL(target.previewUrl);
+        attachments = attachments.filter((a) => a.id !== id);
+    }
 
     const streaming = $derived(chatId ? isStreaming(chatId) : false);
-    const canSend = $derived(draft.trim().length > 0 && !streaming);
+    const uploading = $derived(
+        attachments.some((a) => a.status === "uploading"),
+    );
+    const canSend = $derived(
+        draft.trim().length > 0 && !streaming && !uploading,
+    );
 
     function send() {
         if (!canSend) return;
 
         const content = draft.trim();
+        const images = attachments
+            .filter((a) => a.status === "ready" && a.base64)
+            .map((a) => a.base64!);
+
         draft = "";
+        for (const a of attachments) URL.revokeObjectURL(a.previewUrl);
+        attachments = [];
+        clearChatError();
 
         if (chatId) {
-            appendUserMessage(chatId, content);
-            streamReply(chatId, globalState.model);
+            appendUserMessage(chatId, content, images);
+            streamReply(chatId, globalState.model, globalState.thinking);
             return;
         }
 
-        const newChatId = createChat(content);
+        const newChatId = createChat(content, images);
         goto(`/chat/${newChatId}`);
+    }
+
+    function toggleThinking() {
+        globalState.thinking = !globalState.thinking;
+    }
+
+    function toggleWebSearch() {
+        globalState.webSearch = !globalState.webSearch;
     }
 
     function stop() {
@@ -60,9 +162,64 @@
 </script>
 
 <div class="w-full max-w-2xl">
+    {#if chatError.message}
+        <div
+            class="mb-2 flex items-start justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900/60"
+        >
+            <span>{chatError.message}</span>
+            <button
+                type="button"
+                aria-label="Dismiss error"
+                onclick={clearChatError}
+                class="cursor-pointer text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
+            >
+                ×
+            </button>
+        </div>
+    {/if}
     <div
         class="flex flex-col gap-3 rounded-2xl bg-bg-000 p-3.5 shadow-xs ring-1 ring-black/10"
     >
+        <input
+            bind:this={fileInput}
+            type="file"
+            multiple
+            accept="image/*"
+            onchange={handleFilesSelected}
+            class="hidden"
+        />
+
+        {#if attachments.length > 0}
+            <div class="ml-1 flex flex-wrap gap-2">
+                {#each attachments as attachment (attachment.id)}
+                    <div class="group relative">
+                        <img
+                            src={attachment.previewUrl}
+                            alt={attachment.name}
+                            class="size-16 rounded-md object-cover ring-1 ring-black/10"
+                        />
+                        {#if attachment.status === "uploading"}
+                            <div
+                                class="absolute inset-0 flex items-center justify-center rounded-md bg-black/40"
+                            >
+                                <div
+                                    class="size-4 animate-spin rounded-full border-2 border-white border-t-transparent"
+                                ></div>
+                            </div>
+                        {/if}
+                        <button
+                            type="button"
+                            aria-label="Remove {attachment.name}"
+                            onclick={() => removeAttachment(attachment.id)}
+                            class="absolute -right-1.5 -top-1.5 flex size-5 cursor-pointer items-center justify-center rounded-full bg-bg-000 text-text-200 opacity-0 shadow ring-1 ring-black/10 transition-opacity group-hover:opacity-100"
+                        >
+                            <Icon src={XMark} size="12" />
+                        </button>
+                    </div>
+                {/each}
+            </div>
+        {/if}
+
         <textarea
             bind:this={textarea}
             bind:value={draft}
@@ -73,15 +230,54 @@
         ></textarea>
 
         <div class="flex items-center justify-between">
-            <Tooltip text="Add files">
-                <button
-                    type="button"
-                    aria-label="Add files"
-                    class="flex size-9 cursor-pointer items-center justify-center rounded-md text-text-300 transition-colors duration-100 hover:bg-bg-200"
+            <div class="flex items-center gap-1">
+                <Tooltip text="Add files">
+                    <button
+                        type="button"
+                        aria-label="Add files"
+                        onclick={openFilePicker}
+                        class="flex size-9 cursor-pointer items-center justify-center rounded-md text-text-300 transition-colors duration-100 hover:bg-bg-200"
+                    >
+                        <Icon src={Plus} size="20" />
+                    </button>
+                </Tooltip>
+
+                <Tooltip
+                    text={globalState.thinking
+                        ? "Disable thinking"
+                        : "Enable thinking"}
                 >
-                    <Icon src={Plus} size="20" />
-                </button>
-            </Tooltip>
+                    <button
+                        type="button"
+                        aria-label="Enable thinking"
+                        aria-pressed={globalState.thinking}
+                        onclick={toggleThinking}
+                        class="flex size-9 cursor-pointer items-center justify-center rounded-md transition-colors duration-100 {globalState.thinking
+                            ? 'bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
+                            : 'text-text-300 hover:bg-bg-200'}"
+                    >
+                        <Icon src={LightBulb} size="20" />
+                    </button>
+                </Tooltip>
+
+                <Tooltip
+                    text={globalState.webSearch
+                        ? "Disable web search"
+                        : "Enable web search"}
+                >
+                    <button
+                        type="button"
+                        aria-label="Enable web search"
+                        aria-pressed={globalState.webSearch}
+                        onclick={toggleWebSearch}
+                        class="flex size-9 cursor-pointer items-center justify-center rounded-md transition-colors duration-100 {globalState.webSearch
+                            ? 'bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
+                            : 'text-text-300 hover:bg-bg-200'}"
+                    >
+                        <Icon src={GlobeAlt} size="20" />
+                    </button>
+                </Tooltip>
+            </div>
 
             <div class="flex items-center">
                 <ModelPicker {openUp} />

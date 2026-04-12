@@ -17,6 +17,7 @@ export type OllamaModel = {
 export type ChatMessage = {
     role: "user" | "assistant" | "system";
     content: string;
+    images?: string[];
 };
 
 type TagsResponse = {
@@ -57,16 +58,25 @@ export function parameterCount(model: OllamaModel): number {
     return value * (PARAMETER_SUFFIX_MULTIPLIERS[suffix] ?? 1);
 }
 
+export type StreamChunk =
+    | { type: "content"; text: string }
+    | { type: "thinking"; text: string };
+
 export async function* chatStream(
     model: string,
     messages: ChatMessage[],
-    signal?: AbortSignal,
-): AsyncGenerator<string> {
+    options: { think?: boolean; signal?: AbortSignal } = {},
+): AsyncGenerator<StreamChunk> {
     const response = await fetch(`${OLLAMA_BASE_URL}/api/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model, messages, stream: true }),
-        signal,
+        body: JSON.stringify({
+            model,
+            messages,
+            stream: true,
+            think: options.think ?? false,
+        }),
+        signal: options.signal,
     });
 
     if (!response.ok || !response.body) {
@@ -91,7 +101,9 @@ export async function* chatStream(
             if (!line.trim()) continue;
 
             const event = JSON.parse(line);
-            if (event.message?.content) yield event.message.content as string;
+            const msg = event.message;
+            if (msg?.thinking) yield { type: "thinking", text: msg.thinking as string };
+            if (msg?.content) yield { type: "content", text: msg.content as string };
             if (event.done) return;
         }
     }
