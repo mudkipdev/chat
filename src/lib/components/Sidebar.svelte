@@ -2,7 +2,7 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { Bars3, Icon, Plus } from "@xylightdev/svelte-hero-icons";
+    import { Bars3, Cog6Tooth, Icon, Plus } from "@xylightdev/svelte-hero-icons";
     import { loadRecents, recents, type RecentChat } from "$lib/chats.svelte";
     import { globalState } from "$lib/state.svelte";
     import Tooltip from "./Tooltip.svelte";
@@ -34,7 +34,7 @@
 
 {#if collapsed}
     <aside
-        class="flex h-screen w-14 flex-col items-center gap-2 border-r border-black/5 bg-bg-100 py-3"
+        class="flex h-screen w-14 flex-col items-center gap-2 border-r border-black/5 dark:border-border-300/15 bg-bg-100 py-3"
     >
         <Tooltip text="Expand sidebar" placement="right">
             <button
@@ -57,10 +57,21 @@
                 <Icon src={Plus} size="20" />
             </button>
         </Tooltip>
+
+        <Tooltip text="Settings" placement="right">
+            <button
+                type="button"
+                aria-label="Settings"
+                onclick={newChat}
+                class="flex size-9 cursor-pointer items-center justify-center rounded-md text-text-300 transition-colors duration-100 hover:bg-bg-300"
+            >
+                <Icon src={Cog6Tooth} size="20" />
+            </button>
+        </Tooltip>
     </aside>
 {:else}
     <aside
-        class="flex h-screen w-64 flex-col border-r border-black/5 bg-bg-100"
+        class="flex h-screen w-64 flex-col border-r border-black/5 dark:border-border-300/15 bg-bg-100"
     >
         <div class="flex items-center justify-between px-4 pt-4 pb-2">
             <span class="font-serif text-xl text-text-100">AI Chat</span>
@@ -84,6 +95,17 @@
             >
                 <Icon src={Plus} size="18" />
                 <span>New chat</span>
+            </button>
+        </div>
+
+        <div class="px-2">
+            <button
+                type="button"
+                onclick={newChat}
+                class="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm text-text-100 transition-colors duration-100 hover:bg-bg-300"
+            >
+                <Icon src={Cog6Tooth} size="18" />
+                <span>Settings</span>
             </button>
         </div>
 

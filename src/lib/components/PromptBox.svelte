@@ -12,15 +12,18 @@
     import {
         appendUserMessage,
         chatError,
+        chats,
         clearChatError,
         createChat,
         isStreaming,
         stopStream,
         streamReply,
     } from "$lib/chats.svelte";
-    import { globalState } from "$lib/state.svelte";
+    import { globalState, exaStatus, checkExaStatus } from "$lib/state.svelte";
     import ModelPicker from "./ModelPicker.svelte";
     import Tooltip from "./Tooltip.svelte";
+
+    checkExaStatus();
 
     let {
         chatId,
@@ -111,6 +114,14 @@
         draft.trim().length > 0 && !streaming && !uploading,
     );
 
+    // Once tools have been used in a chat, browsing can't be disabled mid-conversation
+    // because the model would see prior tool calls for tools that no longer exist.
+    const browseLocked = $derived(
+        chatId
+            ? chats[chatId]?.messages.some((m) => m.role === "tool") ?? false
+            : false,
+    );
+
     function send() {
         if (!canSend) return;
 
@@ -126,7 +137,7 @@
 
         if (chatId) {
             appendUserMessage(chatId, content, images);
-            streamReply(chatId, globalState.model, globalState.thinking);
+            streamReply(chatId, globalState.model, globalState.thinking, globalState.webBrowsing);
             return;
         }
 
@@ -138,8 +149,8 @@
         globalState.thinking = !globalState.thinking;
     }
 
-    function toggleWebSearch() {
-        globalState.webSearch = !globalState.webSearch;
+    function toggleWebBrowsing() {
+        globalState.webBrowsing = !globalState.webBrowsing;
     }
 
     function stop() {
@@ -178,7 +189,7 @@
         </div>
     {/if}
     <div
-        class="flex flex-col gap-3 rounded-2xl bg-bg-000 p-3.5 shadow-xs ring-1 ring-black/10"
+        class="flex flex-col gap-3 rounded-2xl bg-bg-000 p-3.5 shadow-sm ring-1 ring-black/10"
     >
         <input
             bind:this={fileInput}
@@ -260,23 +271,30 @@
                     </button>
                 </Tooltip>
 
-                <Tooltip
-                    text={globalState.webSearch
-                        ? "Disable web search"
-                        : "Enable web search"}
-                >
-                    <button
-                        type="button"
-                        aria-label="Enable web search"
-                        aria-pressed={globalState.webSearch}
-                        onclick={toggleWebSearch}
-                        class="flex size-9 cursor-pointer items-center justify-center rounded-md transition-colors duration-100 {globalState.webSearch
-                            ? 'bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
-                            : 'text-text-300 hover:bg-bg-200'}"
+                {#if exaStatus.available}
+                    <Tooltip
+                        text={browseLocked
+                            ? "Start a new chat to disable web browsing"
+                            : globalState.webBrowsing
+                              ? "Disable web browsing"
+                              : "Enable web browsing"}
                     >
-                        <Icon src={GlobeAlt} size="20" />
-                    </button>
-                </Tooltip>
+                        <button
+                            type="button"
+                            aria-label="Enable web browsing"
+                            aria-pressed={globalState.webBrowsing}
+                            disabled={browseLocked}
+                            onclick={toggleWebBrowsing}
+                            class="flex size-9 items-center justify-center rounded-md transition-colors duration-100 {browseLocked
+                                ? 'cursor-not-allowed text-accent-100/40'
+                                : globalState.webBrowsing
+                                  ? 'cursor-pointer bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
+                                  : 'cursor-pointer text-text-300 hover:bg-bg-200'}"
+                        >
+                            <Icon src={GlobeAlt} size="20" />
+                        </button>
+                    </Tooltip>
+                {/if}
             </div>
 
             <div class="flex items-center">

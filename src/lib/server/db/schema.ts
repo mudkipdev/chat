@@ -13,10 +13,11 @@ export const messages = sqliteTable("messages", {
     conversationId: text("conversation_id")
         .notNull()
         .references(() => conversations.id, { onDelete: "cascade" }),
-    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    role: text("role", { enum: ["user", "assistant", "tool"] }).notNull(),
     content: text("content").notNull(),
     thinking: text("thinking"),
     model: text("model"),
+    toolCalls: text("tool_calls"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
         .notNull()
         .$defaultFn(() => new Date()),

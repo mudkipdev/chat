@@ -1,0 +1,9 @@
+.git
+.github
+node_modules
+.svelte-kit
+local.db
+local.db-wal
+local.db-shm
+.DS_Store
+*.log

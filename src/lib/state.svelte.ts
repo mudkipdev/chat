@@ -1,7 +1,7 @@
 export type GlobalState = {
     model: string;
     thinking: boolean;
-    webSearch: boolean;
+    webBrowsing: boolean;
     sidebarCollapsed: boolean;
 };
 
@@ -10,7 +10,7 @@ const STORAGE_KEY = "global-state";
 const DEFAULTS: GlobalState = {
     model: "",
     thinking: false,
-    webSearch: false,
+    webBrowsing: false,
     sidebarCollapsed: false,
 };
 
@@ -34,4 +34,20 @@ if (typeof window !== "undefined") {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
         });
     });
+}
+
+export const exaStatus = $state({ available: false, checked: false });
+
+export async function checkExaStatus(): Promise<void> {
+    if (exaStatus.checked) return;
+    try {
+        const res = await fetch("/api/exa/status");
+        if (res.ok) {
+            const data = (await res.json()) as { available: boolean };
+            exaStatus.available = data.available;
+        }
+    } catch {
+        // Exa unavailable
+    }
+    exaStatus.checked = true;
 }

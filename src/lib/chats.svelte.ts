@@ -1,4 +1,4 @@
-import { chatStream, type ChatMessage } from "./ollama";
+import { chatStream, WEB_TOOLS, type ChatMessage, type ToolCall } from "./ollama";
 import { createPrompt } from "./prompt";
 
 export type Message = ChatMessage & {
@@ -119,10 +119,11 @@ export async function loadChat(chatId: string): Promise<Chat | null> {
             id: string;
             messages: {
                 id: string;
-                role: "user" | "assistant";
+                role: "user" | "assistant" | "tool";
                 content: string;
                 thinking: string | null;
                 model: string | null;
+                toolCalls: string | null;
             }[];
         };
 
@@ -134,6 +135,7 @@ export async function loadChat(chatId: string): Promise<Chat | null> {
                 content: m.content,
                 thinking: m.thinking ?? undefined,
                 model: m.model,
+                tool_calls: m.toolCalls ? JSON.parse(m.toolCalls) : undefined,
                 done: true,
             })),
         };
@@ -164,40 +166,145 @@ export function appendUserMessage(
     );
 }
 
+async function executeToolCall(call: ToolCall): Promise<string> {
+    const { name, arguments: args } = call.function;
+
+    try {
+        if (name === "web_search") {
+            const res = await fetch("/api/exa/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ query: args.query }),
+            });
+            if (!res.ok) return `Search failed: ${res.status}`;
+            return await res.text();
+        }
+
+        if (name === "web_fetch") {
+            const res = await fetch("/api/exa/contents", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ url: args.url }),
+            });
+            if (!res.ok) return `Fetch failed: ${res.status}`;
+            return await res.text();
+        }
+    } catch (err) {
+        const detail = err instanceof Error ? err.message : String(err);
+        return `Tool error: ${detail}`;
+    }
+
+    return `Unknown tool: ${name}`;
+}
+
+function buildHistory(msgs: Message[]): ChatMessage[] {
+    return [
+        { role: "system", content: createPrompt() },
+        ...msgs.map(({ role, content, images, tool_calls }) => {
+            const msg: ChatMessage = { role, content };
+            if (images && images.length > 0) msg.images = images;
+            if (tool_calls && tool_calls.length > 0) msg.tool_calls = tool_calls;
+            return msg;
+        }),
+    ];
+}
+
 export async function streamReply(
     chatId: string,
     model: string,
     think = false,
+    webBrowsing = false,
 ): Promise<void> {
     const chat = chats[chatId];
     if (!chat) return;
 
-    const history: ChatMessage[] = [
-        { role: "system", content: createPrompt() },
-        ...chat.messages.map(({ role, content, images }) => {
-            const msg: ChatMessage = { role, content };
-            if (images && images.length > 0) msg.images = images;
-            return msg;
-        }),
-    ];
-
-    const messageId = crypto.randomUUID();
-    chat.messages.push({ id: messageId, role: "assistant", content: "", done: false, model });
-    const reply = chat.messages[chat.messages.length - 1];
-
     const controller = new AbortController();
     activeStreams[chatId] = controller;
 
+    const tools = webBrowsing ? WEB_TOOLS : undefined;
+    const MAX_TOOL_ROUNDS = 5;
+
+    let replyId = crypto.randomUUID();
+    chat.messages.push({ id: replyId, role: "assistant", content: "", done: false, model });
+    let reply = chat.messages[chat.messages.length - 1];
+
     try {
-        for await (const chunk of chatStream(model, history, {
-            think,
-            signal: controller.signal,
-        })) {
-            if (chunk.type === "thinking") {
-                reply.thinking = (reply.thinking ?? "") + chunk.text;
-            } else {
-                reply.content += chunk.text;
+        for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
+            // Build history from all messages EXCEPT the current in-progress reply
+            const settled = chat.messages.slice(0, -1);
+            const history = buildHistory(settled);
+
+            let toolCalls: ToolCall[] | undefined;
+
+            for await (const chunk of chatStream(model, history, {
+                think,
+                signal: controller.signal,
+                tools,
+            })) {
+                if (chunk.type === "thinking") {
+                    reply.thinking = (reply.thinking ?? "") + chunk.text;
+                } else if (chunk.type === "content") {
+                    reply.content += chunk.text;
+                } else if (chunk.type === "tool_calls") {
+                    toolCalls = chunk.calls;
+                }
             }
+
+            if (!toolCalls || toolCalls.length === 0 || round === MAX_TOOL_ROUNDS) break;
+
+            // Finalize the current reply as a tool-calling message
+            reply.tool_calls = toolCalls;
+            reply.done = true;
+
+            persist("save tool call", () =>
+                fetch(`/api/chats/${chatId}/messages`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        id: replyId,
+                        role: "assistant",
+                        content: reply.content,
+                        thinking: reply.thinking ?? null,
+                        model,
+                        toolCalls: JSON.stringify(toolCalls),
+                    }),
+                }),
+            );
+
+            // Execute each tool call and persist the result as a message
+            for (const call of toolCalls) {
+                const result = await executeToolCall(call);
+                const toolMsgId = crypto.randomUUID();
+                chat.messages.push({
+                    id: toolMsgId,
+                    role: "tool",
+                    content: result,
+                    done: true,
+                });
+
+                persist("save tool result", () =>
+                    fetch(`/api/chats/${chatId}/messages`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            id: toolMsgId,
+                            role: "tool",
+                            content: result,
+                        }),
+                    }),
+                );
+            }
+
+            // Create a fresh reply for the next round
+            replyId = crypto.randomUUID();
+            chat.messages.push({
+                id: replyId,
+                role: "assistant",
+                content: "",
+                done: false,
+                model,
+            });
+            reply = chat.messages[chat.messages.length - 1];
         }
     } catch (error) {
         if (!controller.signal.aborted) {
@@ -214,7 +321,7 @@ export async function streamReply(
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        id: messageId,
+                        id: replyId,
                         role: "assistant",
                         content: reply.content,
                         thinking: reply.thinking ?? null,
@@ -230,17 +337,20 @@ export function retryLast(
     chatId: string,
     model: string,
     think = false,
+    webBrowsing = false,
 ): Promise<void> | undefined {
     const chat = chats[chatId];
     if (!chat) return;
 
-    const last = chat.messages[chat.messages.length - 1];
-    if (last?.role === "assistant") {
+    // Remove all messages after the last user message (tool calls, results, assistant replies)
+    while (chat.messages.length > 0) {
+        const last = chat.messages[chat.messages.length - 1];
+        if (last.role === "user") break;
         chat.messages.pop();
-        persist("delete reply", () =>
+        persist("delete message", () =>
             fetch(`/api/chats/${chatId}/messages/${last.id}`, { method: "DELETE" }),
         );
     }
 
-    return streamReply(chatId, model, think);
+    return streamReply(chatId, model, think, webBrowsing);
 }

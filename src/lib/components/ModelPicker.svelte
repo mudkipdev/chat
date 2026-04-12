@@ -31,6 +31,7 @@
                 !models.some((m) => m.name === globalState.model)
             ) {
                 globalState.model = models[0].name;
+                open = true;
             }
         } catch (e) {
             error = e instanceof Error ? e.message : "Failed to load models";

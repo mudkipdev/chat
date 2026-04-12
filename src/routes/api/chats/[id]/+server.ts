@@ -16,6 +16,7 @@ export const GET: RequestHandler = async ({ params }) => {
             content: messages.content,
             thinking: messages.thinking,
             model: messages.model,
+            toolCalls: messages.toolCalls,
         })
         .from(messages)
         .where(eq(messages.conversationId, params.id))

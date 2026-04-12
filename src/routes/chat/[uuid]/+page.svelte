@@ -5,6 +5,7 @@
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
     import { ChevronRight, Icon } from "@xylightdev/svelte-hero-icons";
+    import Markdown from "$lib/components/Markdown.svelte";
     import MessageActions from "$lib/components/MessageActions.svelte";
     import PromptBox from "$lib/components/PromptBox.svelte";
     import { chats, loadChat, retryLast, streamReply } from "$lib/chats.svelte";
@@ -31,7 +32,7 @@
         const current = chats[chatId];
         const last = current.messages[current.messages.length - 1];
         if (last?.role === "user")
-            streamReply(chatId, globalState.model, globalState.thinking);
+            streamReply(chatId, globalState.model, globalState.thinking, globalState.webBrowsing);
     });
 </script>
 
@@ -40,7 +41,11 @@
         <div class="mx-auto max-w-2xl space-y-6 px-6 py-10">
             {#if chat}
                 {#each chat.messages as message, index (index)}
-                    {#if message.role === "user"}
+                    {#if message.role === "tool"}
+                        <!-- tool results are internal context, not displayed -->
+                    {:else if message.role === "assistant" && message.tool_calls?.length}
+                        <!-- tool-calling assistant messages are internal context, not displayed -->
+                    {:else if message.role === "user"}
                         <div class="flex justify-end">
                             <div
                                 class="max-w-[80%] whitespace-pre-wrap rounded-lg bg-bg-300 px-4 py-2.5 text-text-100"
@@ -84,10 +89,8 @@
                                 </div>
                             {/if}
 
-                            <div
-                                class="whitespace-pre-wrap font-serif text-text-100"
-                            >
-                                {message.content}
+                            <div class="font-serif text-text-100">
+                                <Markdown content={message.content} />
                             </div>
 
                             {#if message.error}
@@ -107,6 +110,7 @@
                                             chatId,
                                             globalState.model,
                                             globalState.thinking,
+                                            globalState.webBrowsing,
                                         )}
                                 />
                             {/if}
