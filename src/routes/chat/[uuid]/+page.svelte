@@ -55,6 +55,15 @@
                         </div>
                     {:else}
                         <div>
+                            {#if message.done === false && !message.content && !message.steps?.length && !message.thinking}
+                                <div class="py-2 text-text-400">
+                                    <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" class="opacity-20" />
+                                        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                                    </svg>
+                                </div>
+                            {/if}
+
                             {#if message.steps?.length || (message.thinking && !message.steps)}
                                 {@const hasSteps = !!message.steps?.length}
                                 {@const isWorking = message.done === false}
@@ -75,7 +84,7 @@
                                         </span>
 
                                         <span>
-                                            {#if isWorking && !stepsOpen[message.id]}
+                                            {#if isWorking}
                                                 Working...
                                             {:else if stepsOpen[message.id]}
                                                 Hide steps
@@ -87,7 +96,7 @@
                                     {#if stepsOpen[message.id]}
                                         <div
                                             transition:slide={{ duration: 200, easing: cubicOut }}
-                                            class="mt-2 ml-1.5"
+                                            class="mt-2 ml-1.5 overflow-visible"
                                         >
                                             {#if hasSteps}
                                                 {#each message.steps as step}
