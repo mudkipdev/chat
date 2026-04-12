@@ -1,5 +1,11 @@
 # chat
-Local AI chat interface
+Local AI chat interface using Ollama/llama.cpp
+
+## Usage
+```
+bun install
+bun preview
+```
 
 ## Features
 - [X] Sending messages and streaming responses
