@@ -6,6 +6,7 @@ Local AI chat interface
 - [X] Choosing between multiple models running locally
 - [X] Saving conversations
 - [X] Extended thinking for better answers
+- [X] Image uploads
 - [ ] Accounts
 
 ![A screenshot of the UI](https://files.catbox.moe/em1nt8.png)
