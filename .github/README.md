@@ -14,5 +14,8 @@ bun preview
 - [X] Extended thinking for better answers
 - [X] Image uploads
 - [ ] Accounts
+- [ ] Web search
+- [ ] Prompt customization
+- [ ] Chat sharing
 
 ![A screenshot of the UI](https://files.catbox.moe/em1nt8.png)
