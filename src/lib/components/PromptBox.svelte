@@ -286,7 +286,7 @@
                             disabled={browseLocked}
                             onclick={toggleWebBrowsing}
                             class="flex size-9 items-center justify-center rounded-md transition-colors duration-100 {browseLocked
-                                ? 'cursor-not-allowed text-accent-100/40'
+                                ? 'cursor-not-allowed bg-accent-100/10 text-accent-100 opacity-50'
                                 : globalState.webBrowsing
                                   ? 'cursor-pointer bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
                                   : 'cursor-pointer text-text-300 hover:bg-bg-200'}"

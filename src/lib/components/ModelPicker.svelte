@@ -4,8 +4,8 @@
     import {
         fetchModels,
         parameterCount,
-        type OllamaModel,
-    } from "$lib/ollama";
+        type Model,
+    } from "$lib/llm";
     import { globalState } from "$lib/state.svelte";
 
     let { openUp = false }: { openUp?: boolean } = $props();
@@ -14,7 +14,7 @@
     let trigger: HTMLButtonElement | undefined = $state();
     let panel: HTMLDivElement | undefined = $state();
 
-    let models = $state<OllamaModel[]>([]);
+    let models = $state<Model[]>([]);
     let loading = $state(true);
     let error = $state<string | null>(null);
 

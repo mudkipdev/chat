@@ -4,7 +4,7 @@
     import { cubicOut } from "svelte/easing";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { ChevronRight, Icon } from "@xylightdev/svelte-hero-icons";
+    import { ChevronRight, MagnifyingGlass, GlobeAlt, Icon } from "@xylightdev/svelte-hero-icons";
     import Markdown from "$lib/components/Markdown.svelte";
     import MessageActions from "$lib/components/MessageActions.svelte";
     import PromptBox from "$lib/components/PromptBox.svelte";
@@ -14,10 +14,10 @@
     const chatId = $derived(page.params.uuid!);
     const chat = $derived(chats[chatId]);
 
-    let thinkingOpen = $state<Record<string, boolean>>({});
+    let stepsOpen = $state<Record<string, boolean>>({});
 
-    function toggleThinking(id: string) {
-        thinkingOpen[id] = !thinkingOpen[id];
+    function toggleSteps(id: string) {
+        stepsOpen[id] = !stepsOpen[id];
     }
 
     onMount(async () => {
@@ -55,15 +55,17 @@
                         </div>
                     {:else}
                         <div>
-                            {#if message.thinking}
+                            {#if message.steps?.length || (message.thinking && !message.steps)}
+                                {@const hasSteps = !!message.steps?.length}
+                                {@const isWorking = message.done === false}
                                 <div class="mb-3 font-sans">
                                     <button
                                         type="button"
-                                        onclick={() => toggleThinking(message.id)}
+                                        onclick={() => toggleSteps(message.id)}
                                         class="flex cursor-pointer items-center gap-1 -ml-1 text-sm text-text-400 hover:text-text-200"
                                     >
                                         <span
-                                            class="flex transition-transform duration-200 ease-out {thinkingOpen[
+                                            class="flex transition-transform duration-200 ease-out {stepsOpen[
                                                 message.id
                                             ]
                                                 ? 'rotate-90'
@@ -73,17 +75,43 @@
                                         </span>
 
                                         <span>
-                                            {thinkingOpen[message.id]
-                                                ? "Hide thinking"
-                                                : "Show thinking"}
+                                            {#if isWorking && !stepsOpen[message.id]}
+                                                Working...
+                                            {:else if stepsOpen[message.id]}
+                                                Hide steps
+                                            {:else}
+                                                Show steps
+                                            {/if}
                                         </span>
                                     </button>
-                                    {#if thinkingOpen[message.id]}
+                                    {#if stepsOpen[message.id]}
                                         <div
                                             transition:slide={{ duration: 200, easing: cubicOut }}
-                                            class="mt-2 whitespace-pre-wrap border-l border-bg-400 pl-6 text-sm text-text-400"
+                                            class="mt-2 ml-1.5"
                                         >
-                                            {message.thinking}
+                                            {#if hasSteps}
+                                                {#each message.steps as step}
+                                                    {#if step.type === "thinking"}
+                                                        <div class="border-l-2 border-bg-400 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
+                                                            {step.text}
+                                                        </div>
+                                                    {:else if step.type === "search"}
+                                                        <div class="flex items-center gap-3 -ml-[8px] my-[2px] py-2 text-sm text-text-300">
+                                                            <Icon src={MagnifyingGlass} size="18" class="shrink-0" />
+                                                            <span>Searched for "{step.query}"</span>
+                                                        </div>
+                                                    {:else if step.type === "fetch"}
+                                                        <div class="flex items-center gap-3 -ml-[8px] my-[2px] py-2 text-sm text-text-300">
+                                                            <Icon src={MagnifyingGlass} size="18" class="shrink-0" />
+                                                            <span class="truncate">Fetched {step.url}</span>
+                                                        </div>
+                                                    {/if}
+                                                {/each}
+                                            {:else if message.thinking}
+                                                <div class="border-l-2 border-bg-400 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
+                                                    {message.thinking}
+                                                </div>
+                                            {/if}
                                         </div>
                                     {/if}
                                 </div>

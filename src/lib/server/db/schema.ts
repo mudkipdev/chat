@@ -18,6 +18,8 @@ export const messages = sqliteTable("messages", {
     thinking: text("thinking"),
     model: text("model"),
     toolCalls: text("tool_calls"),
+    error: text("error"),
+    steps: text("steps"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
         .notNull()
         .$defaultFn(() => new Date()),

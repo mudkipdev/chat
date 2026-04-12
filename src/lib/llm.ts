@@ -1,4 +1,4 @@
-export type OllamaModel = {
+export type Model = {
     name: string;
     model: string;
     modified_at: string;
@@ -15,9 +15,11 @@ export type OllamaModel = {
 };
 
 export type ToolCall = {
+    type?: "function";
+    id?: string;
     function: {
         name: string;
-        arguments: Record<string, unknown>;
+        arguments: Record<string, unknown> | string;
     };
 };
 
@@ -26,6 +28,7 @@ export type ChatMessage = {
     content: string;
     images?: string[];
     tool_calls?: ToolCall[];
+    tool_call_id?: string;
 };
 
 export type ToolDefinition = {
@@ -76,8 +79,8 @@ export const WEB_TOOLS: ToolDefinition[] = [
     },
 ];
 
-type TagsResponse = {
-    models: OllamaModel[];
+type ModelsResponse = {
+    models: Model[];
 };
 
 const PARAMETER_SUFFIX_MULTIPLIERS: Record<string, number> = {
@@ -87,20 +90,20 @@ const PARAMETER_SUFFIX_MULTIPLIERS: Record<string, number> = {
     T: 1e12,
 };
 
-export async function fetchModels(): Promise<OllamaModel[]> {
+export async function fetchModels(): Promise<Model[]> {
     const response = await fetch("/api/models");
 
     if (!response.ok) {
         throw new Error(
-            `ollama /api/tags: ${response.status} ${response.statusText}`,
+            `Failed to fetch models: ${response.status} ${response.statusText}`,
         );
     }
 
-    const data: TagsResponse = await response.json();
+    const data: ModelsResponse = await response.json();
     return data.models;
 }
 
-export function parameterCount(model: OllamaModel): number {
+export function parameterCount(model: Model): number {
     const raw = model.details.parameter_size;
     if (!raw) return 0;
 
@@ -122,17 +125,21 @@ export async function* chatStream(
     messages: ChatMessage[],
     options: { think?: boolean; signal?: AbortSignal; tools?: ToolDefinition[] } = {},
 ): AsyncGenerator<StreamChunk> {
+    const think = options.think ?? false;
     const body: Record<string, unknown> = {
         model,
         messages,
         stream: true,
-        think: options.think ?? false,
+        // Ollama
+        think,
+        // llama.cpp
+        chat_template_kwargs: { enable_thinking: think },
     };
     if (options.tools && options.tools.length > 0) {
         body.tools = options.tools;
     }
 
-    const response = await fetch("/api/ollama/chat", {
+    const response = await fetch("/api/llm/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -140,9 +147,8 @@ export async function* chatStream(
     });
 
     if (!response.ok || !response.body) {
-        throw new Error(
-            `ollama /api/chat: ${response.status} ${response.statusText}`,
-        );
+        const detail = await response.text().catch(() => response.statusText);
+        throw new Error(`Chat request failed: ${detail}`);
     }
 
     const reader = response.body.getReader();
@@ -177,10 +183,40 @@ export async function* chatStream(
                     yield { type: "thinking", text: delta.reasoning_content as string };
                 if (delta?.content)
                     yield { type: "content", text: delta.content as string };
-                if (delta?.tool_calls) collectedToolCalls.push(...delta.tool_calls);
+                if (delta?.tool_calls) {
+                    for (const tc of delta.tool_calls) {
+                        const idx = tc.index ?? collectedToolCalls.length;
+                        if (!collectedToolCalls[idx]) {
+                            // First chunk for this tool call — has id, name, and start of args
+                            collectedToolCalls[idx] = {
+                                type: "function",
+                                id: tc.id,
+                                function: {
+                                    name: tc.function?.name ?? "",
+                                    arguments: tc.function?.arguments ?? "",
+                                },
+                            };
+                        } else {
+                            // Subsequent chunks — append to arguments
+                            collectedToolCalls[idx].function.arguments +=
+                                tc.function?.arguments ?? "";
+                        }
+                    }
+                }
                 if (choice?.finish_reason === "stop" || choice?.finish_reason === "tool_calls") {
                     if (collectedToolCalls.length > 0) {
-                        yield { type: "tool_calls", calls: collectedToolCalls };
+                        // Parse the accumulated argument strings into objects
+                        const parsed = collectedToolCalls.map((tc) => ({
+                            ...tc,
+                            function: {
+                                name: tc.function.name,
+                                arguments:
+                                    typeof tc.function.arguments === "string"
+                                        ? JSON.parse(tc.function.arguments)
+                                        : tc.function.arguments,
+                            },
+                        }));
+                        yield { type: "tool_calls", calls: parsed };
                     }
                     return;
                 }
@@ -191,7 +227,11 @@ export async function* chatStream(
             const msg = event.message;
             if (msg?.thinking) yield { type: "thinking", text: msg.thinking as string };
             if (msg?.content) yield { type: "content", text: msg.content as string };
-            if (msg?.tool_calls) collectedToolCalls.push(...msg.tool_calls);
+            if (msg?.tool_calls) {
+                for (const tc of msg.tool_calls) {
+                    collectedToolCalls.push({ type: "function", ...tc });
+                }
+            }
             if (event.done) {
                 if (collectedToolCalls.length > 0) {
                     yield { type: "tool_calls", calls: collectedToolCalls };

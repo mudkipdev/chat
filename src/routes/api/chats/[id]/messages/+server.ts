@@ -10,6 +10,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
         thinking?: string | null;
         model?: string | null;
         toolCalls?: string | null;
+        error?: string | null;
+        steps?: string | null;
     };
 
     if (!body.id || !body.role || body.content == null) {
@@ -26,6 +28,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
             thinking: body.thinking ?? null,
             model: body.model ?? null,
             toolCalls: body.toolCalls ?? null,
+            error: body.error ?? null,
+            steps: body.steps ?? null,
         })
         .onConflictDoUpdate({
             target: messages.id,
@@ -34,6 +38,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
                 thinking: body.thinking ?? null,
                 model: body.model ?? null,
                 toolCalls: body.toolCalls ?? null,
+                error: body.error ?? null,
+                steps: body.steps ?? null,
             },
         });
 

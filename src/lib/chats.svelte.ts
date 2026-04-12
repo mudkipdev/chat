@@ -1,5 +1,10 @@
-import { chatStream, WEB_TOOLS, type ChatMessage, type ToolCall } from "./ollama";
+import { chatStream, WEB_TOOLS, type ChatMessage, type ToolCall } from "./llm";
 import { createPrompt } from "./prompt";
+
+export type Step =
+    | { type: "thinking"; text: string }
+    | { type: "search"; query: string }
+    | { type: "fetch"; url: string };
 
 export type Message = ChatMessage & {
     id: string;
@@ -7,6 +12,7 @@ export type Message = ChatMessage & {
     done?: boolean;
     error?: string;
     thinking?: string;
+    steps?: Step[];
 };
 
 export type Chat = {
@@ -124,6 +130,8 @@ export async function loadChat(chatId: string): Promise<Chat | null> {
                 thinking: string | null;
                 model: string | null;
                 toolCalls: string | null;
+                error: string | null;
+                steps: string | null;
             }[];
         };
 
@@ -136,6 +144,8 @@ export async function loadChat(chatId: string): Promise<Chat | null> {
                 thinking: m.thinking ?? undefined,
                 model: m.model,
                 tool_calls: m.toolCalls ? JSON.parse(m.toolCalls) : undefined,
+                error: m.error ?? undefined,
+                steps: m.steps ? JSON.parse(m.steps) : undefined,
                 done: true,
             })),
         };
@@ -200,10 +210,11 @@ async function executeToolCall(call: ToolCall): Promise<string> {
 function buildHistory(msgs: Message[]): ChatMessage[] {
     return [
         { role: "system", content: createPrompt() },
-        ...msgs.map(({ role, content, images, tool_calls }) => {
+        ...msgs.map(({ role, content, images, tool_calls, tool_call_id }) => {
             const msg: ChatMessage = { role, content };
             if (images && images.length > 0) msg.images = images;
             if (tool_calls && tool_calls.length > 0) msg.tool_calls = tool_calls;
+            if (tool_call_id) msg.tool_call_id = tool_call_id;
             return msg;
         }),
     ];
@@ -227,6 +238,17 @@ export async function streamReply(
     let replyId = crypto.randomUUID();
     chat.messages.push({ id: replyId, role: "assistant", content: "", done: false, model });
     let reply = chat.messages[chat.messages.length - 1];
+    const steps: Step[] = [];
+
+    function pushThinking(text: string) {
+        const last = steps[steps.length - 1];
+        if (last?.type === "thinking") {
+            last.text += text;
+        } else {
+            steps.push({ type: "thinking", text });
+        }
+        reply.steps = [...steps];
+    }
 
     try {
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
@@ -242,7 +264,7 @@ export async function streamReply(
                 tools,
             })) {
                 if (chunk.type === "thinking") {
-                    reply.thinking = (reply.thinking ?? "") + chunk.text;
+                    pushThinking(chunk.text);
                 } else if (chunk.type === "content") {
                     reply.content += chunk.text;
                 } else if (chunk.type === "tool_calls") {
@@ -271,14 +293,23 @@ export async function streamReply(
                 }),
             );
 
-            // Execute each tool call and persist the result as a message
+            // Execute each tool call and add steps
             for (const call of toolCalls) {
+                const { name, arguments: args } = call.function;
+                if (name === "web_search") {
+                    steps.push({ type: "search", query: String(args.query ?? "") });
+                } else if (name === "web_fetch") {
+                    steps.push({ type: "fetch", url: String(args.url ?? "") });
+                }
+                reply.steps = [...steps];
+
                 const result = await executeToolCall(call);
                 const toolMsgId = crypto.randomUUID();
                 chat.messages.push({
                     id: toolMsgId,
                     role: "tool",
                     content: result,
+                    tool_call_id: call.id ?? toolMsgId,
                     done: true,
                 });
 
@@ -303,6 +334,7 @@ export async function streamReply(
                 content: "",
                 done: false,
                 model,
+                steps: [...steps],
             });
             reply = chat.messages[chat.messages.length - 1];
         }
@@ -315,7 +347,7 @@ export async function streamReply(
         reply.done = true;
         if (activeStreams[chatId] === controller) delete activeStreams[chatId];
 
-        if (reply.content.length > 0) {
+        if (reply.content.length > 0 || reply.error) {
             persist("save reply", () =>
                 fetch(`/api/chats/${chatId}/messages`, {
                     method: "POST",
@@ -326,6 +358,8 @@ export async function streamReply(
                         content: reply.content,
                         thinking: reply.thinking ?? null,
                         model,
+                        error: reply.error ?? null,
+                        steps: steps.length > 0 ? JSON.stringify(steps) : null,
                     }),
                 }),
             );

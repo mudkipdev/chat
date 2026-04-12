@@ -21,7 +21,7 @@
     {@render children()}
     <div
         role="tooltip"
-        class="pointer-events-none invisible absolute z-50 max-w-50 whitespace-nowrap rounded-md bg-black/80 px-2 py-1 text-xs font-normal text-white shadow-md backdrop-blur group-hover:visible {positionClasses[
+        class="pointer-events-none invisible absolute z-50 whitespace-nowrap rounded-md bg-black/80 px-2 py-1 text-center text-xs font-normal text-white shadow-md backdrop-blur group-hover:visible {positionClasses[
             placement
         ]}"
     >
