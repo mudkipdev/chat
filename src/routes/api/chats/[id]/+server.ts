@@ -1,11 +1,16 @@
 import { json, error } from "@sveltejs/kit";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, and } from "drizzle-orm";
 import { db, conversations, messages } from "$lib/server/db";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = async ({ params }) => {
+export const GET: RequestHandler = async ({ locals, params }) => {
+    if (!locals.user) throw error(401, "unauthorized");
+
     const chat = await db.query.conversations.findFirst({
-        where: eq(conversations.id, params.id),
+        where: and(
+            eq(conversations.id, params.id),
+            eq(conversations.userId, locals.user.id),
+        ),
     });
     if (!chat) throw error(404, "not found");
 
@@ -14,11 +19,7 @@ export const GET: RequestHandler = async ({ params }) => {
             id: messages.id,
             role: messages.role,
             content: messages.content,
-            thinking: messages.thinking,
-            model: messages.model,
-            toolCalls: messages.toolCalls,
-            error: messages.error,
-            steps: messages.steps,
+            metadata: messages.metadata,
         })
         .from(messages)
         .where(eq(messages.conversationId, params.id))

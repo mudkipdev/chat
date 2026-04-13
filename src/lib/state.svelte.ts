@@ -1,3 +1,10 @@
+export type UserInfo = {
+    id: string;
+    username: string;
+    displayName: string;
+    admin: boolean;
+};
+
 export type GlobalState = {
     model: string;
     thinking: boolean;
@@ -34,6 +41,32 @@ if (typeof window !== "undefined") {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(globalState));
         });
     });
+}
+
+export const user = $state<{ info: UserInfo | null; loaded: boolean }>({
+    info: null,
+    loaded: false,
+});
+
+export async function loadUser(): Promise<UserInfo | null> {
+    try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+            user.info = (await res.json()) as UserInfo;
+        } else {
+            user.info = null;
+        }
+    } catch {
+        user.info = null;
+    }
+    user.loaded = true;
+    return user.info;
+}
+
+export async function logout(): Promise<void> {
+    await fetch("/api/auth/logout", { method: "POST" });
+    user.info = null;
+    window.location.href = "/login";
 }
 
 export const exaStatus = $state({ available: false, checked: false });

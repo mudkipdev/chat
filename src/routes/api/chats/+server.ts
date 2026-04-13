@@ -1,9 +1,11 @@
 import { json, error } from "@sveltejs/kit";
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, and } from "drizzle-orm";
 import { db, conversations, messages } from "$lib/server/db";
 import type { RequestHandler } from "./$types";
 
-export const GET: RequestHandler = async () => {
+export const GET: RequestHandler = async ({ locals }) => {
+    if (!locals.user) throw error(401, "unauthorized");
+
     const rows = await db
         .select({
             id: conversations.id,
@@ -11,6 +13,7 @@ export const GET: RequestHandler = async () => {
             createdAt: conversations.createdAt,
         })
         .from(conversations)
+        .where(eq(conversations.userId, locals.user.id))
         .orderBy(desc(conversations.createdAt));
 
     const results = await Promise.all(
@@ -33,7 +36,9 @@ export const GET: RequestHandler = async () => {
     return json(results);
 };
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ locals, request }) => {
+    if (!locals.user) throw error(401, "unauthorized");
+
     const { id, messageId, content } = (await request.json()) as {
         id?: string;
         messageId?: string;
@@ -43,7 +48,7 @@ export const POST: RequestHandler = async ({ request }) => {
         throw error(400, "id, messageId, content required");
     }
 
-    await db.insert(conversations).values({ id });
+    await db.insert(conversations).values({ id, userId: locals.user.id });
     await db.insert(messages).values({
         id: messageId,
         conversationId: id,

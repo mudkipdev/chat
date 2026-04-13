@@ -17,6 +17,7 @@
         "@tailwindcss/vite": "^4.1.18",
         "@types/marked": "^6.0.0",
         "@xylightdev/svelte-hero-icons": "^2.2.10",
+        "better-sqlite3": "^12.9.0",
         "drizzle-kit": "^0.31.10",
         "svelte": "^5.51.0",
         "svelte-adapter-bun": "^1.0.1",

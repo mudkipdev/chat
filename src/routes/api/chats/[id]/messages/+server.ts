@@ -7,11 +7,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
         id?: string;
         role?: "user" | "assistant" | "tool";
         content?: string;
-        thinking?: string | null;
-        model?: string | null;
-        toolCalls?: string | null;
-        error?: string | null;
-        steps?: string | null;
+        metadata?: string | null;
     };
 
     if (!body.id || !body.role || body.content == null) {
@@ -25,21 +21,13 @@ export const POST: RequestHandler = async ({ params, request }) => {
             conversationId: params.id,
             role: body.role,
             content: body.content,
-            thinking: body.thinking ?? null,
-            model: body.model ?? null,
-            toolCalls: body.toolCalls ?? null,
-            error: body.error ?? null,
-            steps: body.steps ?? null,
+            metadata: body.metadata ?? null,
         })
         .onConflictDoUpdate({
             target: messages.id,
             set: {
                 content: body.content,
-                thinking: body.thinking ?? null,
-                model: body.model ?? null,
-                toolCalls: body.toolCalls ?? null,
-                error: body.error ?? null,
-                steps: body.steps ?? null,
+                metadata: body.metadata ?? null,
             },
         });
 

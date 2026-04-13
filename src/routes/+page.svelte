@@ -1,8 +1,15 @@
 <script lang="ts">
     import PromptBox from "$lib/components/PromptBox.svelte";
     import { pickGreeting } from "$lib/greeting";
+    import { user } from "$lib/state.svelte";
 
-    const greeting = pickGreeting({ kind: "unauthenticated" });
+    const greeting = $derived(
+        pickGreeting(
+            user.info
+                ? { kind: "named", name: user.info.displayName }
+                : { kind: "unauthenticated" },
+        ),
+    );
 </script>
 
 <div class="flex min-h-screen flex-col items-center gap-10 px-6 pt-[26vh]">

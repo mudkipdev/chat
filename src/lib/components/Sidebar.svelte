@@ -2,9 +2,9 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { Bars3, Cog6Tooth, Icon, Plus } from "@xylightdev/svelte-hero-icons";
+    import { Bars3, ArrowRightStartOnRectangle, UserGroup, Icon, Plus } from "@xylightdev/svelte-hero-icons";
     import { loadRecents, recents, type RecentChat } from "$lib/chats.svelte";
-    import { globalState } from "$lib/state.svelte";
+    import { globalState, user, logout } from "$lib/state.svelte";
     import Tooltip from "./Tooltip.svelte";
 
     const collapsed = $derived(globalState.sidebarCollapsed);
@@ -58,16 +58,18 @@
             </button>
         </Tooltip>
 
-        <Tooltip text="Settings" placement="right">
-            <button
-                type="button"
-                aria-label="Settings"
-                onclick={newChat}
-                class="flex size-9 cursor-pointer items-center justify-center rounded-md text-text-300 transition-colors duration-100 hover:bg-bg-300"
-            >
-                <Icon src={Cog6Tooth} size="20" />
-            </button>
-        </Tooltip>
+        <div class="mt-auto pb-3">
+            <Tooltip text="Sign out" placement="right">
+                <button
+                    type="button"
+                    aria-label="Sign out"
+                    onclick={logout}
+                    class="flex size-9 cursor-pointer items-center justify-center rounded-md text-text-300 transition-colors duration-100 hover:bg-bg-300"
+                >
+                    <Icon src={ArrowRightStartOnRectangle} size="20" />
+                </button>
+            </Tooltip>
+        </div>
     </aside>
 {:else}
     <aside
@@ -95,17 +97,6 @@
             >
                 <Icon src={Plus} size="18" />
                 <span>New chat</span>
-            </button>
-        </div>
-
-        <div class="px-2">
-            <button
-                type="button"
-                onclick={newChat}
-                class="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm text-text-100 transition-colors duration-100 hover:bg-bg-300"
-            >
-                <Icon src={Cog6Tooth} size="18" />
-                <span>Settings</span>
             </button>
         </div>
 
@@ -137,5 +128,33 @@
                 </ul>
             {/if}
         </div>
+
+        {#if user.info}
+            <div class="border-t border-black/5 dark:border-border-300/15 px-3 py-2 flex flex-col gap-1">
+                {#if user.info.admin}
+                    <button
+                        type="button"
+                        onclick={() => goto("/admin")}
+                        class="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-300 transition-colors duration-100 hover:bg-bg-300 hover:text-text-100"
+                    >
+                        <Icon src={UserGroup} size="16" />
+                        <span>Manage users</span>
+                    </button>
+                {/if}
+            </div>
+            <div class="border-t border-black/5 dark:border-border-300/15 px-4 py-3 flex items-center justify-between">
+                <span class="truncate text-sm text-text-300">{user.info.displayName}</span>
+                <Tooltip text="Sign out" placement="top">
+                    <button
+                        type="button"
+                        aria-label="Sign out"
+                        onclick={logout}
+                        class="flex size-7 cursor-pointer items-center justify-center rounded-md text-text-400 transition-colors duration-100 hover:text-text-100 hover:bg-bg-300"
+                    >
+                        <Icon src={ArrowRightStartOnRectangle} size="16" />
+                    </button>
+                </Tooltip>
+            </div>
+        {/if}
     </aside>
 {/if}

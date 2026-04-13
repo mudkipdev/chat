@@ -1,10 +1,8 @@
 import { chatStream, WEB_TOOLS, type ChatMessage, type ToolCall } from "./llm";
+import type { Step, AssistantMeta } from "./messages";
 import { createPrompt } from "./prompt";
 
-export type Step =
-    | { type: "thinking"; text: string }
-    | { type: "search"; query: string }
-    | { type: "fetch"; url: string };
+export type { Step } from "./messages";
 
 export type Message = ChatMessage & {
     id: string;
@@ -51,6 +49,14 @@ function persist(label: string, init: () => Promise<Response>): void {
             }
         })
         .catch((error) => reportError(label, error));
+}
+
+function packMeta(obj: Record<string, unknown>): string | null {
+    const clean: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+        if (v != null) clean[k] = v;
+    }
+    return Object.keys(clean).length > 0 ? JSON.stringify(clean) : null;
 }
 
 export function clearChatError(): void {
@@ -127,27 +133,28 @@ export async function loadChat(chatId: string): Promise<Chat | null> {
                 id: string;
                 role: "user" | "assistant" | "tool";
                 content: string;
-                thinking: string | null;
-                model: string | null;
-                toolCalls: string | null;
-                error: string | null;
-                steps: string | null;
+                metadata: string | null;
             }[];
         };
 
         chats[data.id] = {
             id: data.id,
-            messages: data.messages.map((m) => ({
-                id: m.id,
-                role: m.role,
-                content: m.content,
-                thinking: m.thinking ?? undefined,
-                model: m.model,
-                tool_calls: m.toolCalls ? JSON.parse(m.toolCalls) : undefined,
-                error: m.error ?? undefined,
-                steps: m.steps ? JSON.parse(m.steps) : undefined,
-                done: true,
-            })),
+            messages: data.messages.map((m) => {
+                const meta = m.metadata ? JSON.parse(m.metadata) : {};
+                return {
+                    id: m.id,
+                    role: m.role,
+                    content: m.content,
+                    thinking: meta.thinking ?? undefined,
+                    model: meta.model ?? undefined,
+                    tool_calls: meta.toolCalls ?? undefined,
+                    tool_call_id: meta.toolCallId ?? undefined,
+                    images: meta.images ?? undefined,
+                    error: meta.error ?? undefined,
+                    steps: meta.steps ?? undefined,
+                    done: true,
+                };
+            }),
         };
         return chats[data.id];
     } catch (error) {
@@ -286,9 +293,11 @@ export async function streamReply(
                         id: replyId,
                         role: "assistant",
                         content: reply.content,
-                        thinking: reply.thinking ?? null,
-                        model,
-                        toolCalls: JSON.stringify(toolCalls),
+                        metadata: packMeta({
+                            thinking: reply.thinking,
+                            model,
+                            toolCalls,
+                        }),
                     }),
                 }),
             );
@@ -336,6 +345,7 @@ export async function streamReply(
                             id: toolMsgId,
                             role: "tool",
                             content: result,
+                            metadata: packMeta({ toolCallId: call.id ?? toolMsgId }),
                         }),
                     }),
                 );
@@ -359,10 +369,12 @@ export async function streamReply(
                         id: replyId,
                         role: "assistant",
                         content: reply.content,
-                        thinking: reply.thinking ?? null,
-                        model,
-                        error: reply.error ?? null,
-                        steps: steps.length > 0 ? JSON.stringify(steps) : null,
+                        metadata: packMeta({
+                            model,
+                            thinking: reply.thinking,
+                            error: reply.error,
+                            steps: steps.length > 0 ? steps : undefined,
+                        }),
                     }),
                 }),
             );
