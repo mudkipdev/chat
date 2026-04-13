@@ -172,7 +172,7 @@
     });
 </script>
 
-<div class="w-full max-w-2xl">
+<div class="w-full">
     {#if chatError.message}
         <div
             class="mb-2 flex items-start justify-between gap-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-900/60"

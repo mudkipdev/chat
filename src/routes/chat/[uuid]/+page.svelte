@@ -20,25 +20,33 @@
         stepsOpen[id] = !stepsOpen[id];
     }
 
-    onMount(async () => {
-        if (!chats[chatId]) {
-            const loaded = await loadChat(chatId);
-            if (!loaded) {
-                goto("/");
-                return;
-            }
+    // Reactively load chat data when chatId changes (e.g. sidebar navigation)
+    $effect(() => {
+        const id = chatId;
+        if (!chats[id]) {
+            loadChat(id).then((loaded) => {
+                if (!loaded) goto("/");
+            });
         }
+    });
 
-        const current = chats[chatId];
+    // Auto-reply on initial page load if the last message is from the user
+    onMount(async () => {
+        const id = chatId;
+        let current = chats[id];
+        if (!current) {
+            current = await loadChat(id);
+            if (!current) return;
+        }
         const last = current.messages[current.messages.length - 1];
         if (last?.role === "user")
-            streamReply(chatId, globalState.model, globalState.thinking, globalState.webBrowsing);
+            streamReply(id, globalState.model, globalState.thinking, globalState.webBrowsing);
     });
 </script>
 
 <div class="flex h-screen flex-col">
     <div class="flex-1 overflow-y-auto">
-        <div class="mx-auto max-w-2xl space-y-6 px-6 py-10">
+        <div class="mx-auto max-w-3xl space-y-6 px-6 py-10">
             {#if chat}
                 {#each chat.messages as message, index (index)}
                     {#if message.role === "tool"}
@@ -66,7 +74,7 @@
 
                             {#if message.steps?.length || (message.thinking && !message.steps)}
                                 {@const hasSteps = !!message.steps?.length}
-                                {@const isWorking = message.done === false}
+                                {@const isThinking = message.done === false && !message.content}
                                 <div class="mb-3 font-sans">
                                     <button
                                         type="button"
@@ -84,8 +92,8 @@
                                         </span>
 
                                         <span>
-                                            {#if isWorking}
-                                                Working...
+                                            {#if isThinking}
+                                                Thinking...
                                             {:else if stepsOpen[message.id]}
                                                 Hide steps
                                             {:else}
@@ -159,7 +167,7 @@
     </div>
 
     <div class="bg-bg-100 pb-8 pt-2">
-        <div class="mx-auto flex w-full max-w-2xl justify-center px-6">
+        <div class="mx-auto flex w-full max-w-3xl justify-center px-6">
             <PromptBox {chatId} placeholder="Reply..." openUp />
         </div>
     </div>

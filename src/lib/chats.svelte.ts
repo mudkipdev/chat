@@ -293,7 +293,21 @@ export async function streamReply(
                 }),
             );
 
-            // Execute each tool call and add steps
+            // Create a fresh reply immediately so the UI always has a visible
+            // assistant message (the tool-calling one is hidden by the template).
+            replyId = crypto.randomUUID();
+            chat.messages.push({
+                id: replyId,
+                role: "assistant",
+                content: "",
+                done: false,
+                model,
+                steps: [...steps],
+            });
+            reply = chat.messages[chat.messages.length - 1];
+
+            // Execute each tool call and add steps.
+            // Insert tool messages just before the new reply so history order is correct.
             for (const call of toolCalls) {
                 const { name, arguments: args } = call.function;
                 if (name === "web_search") {
@@ -305,7 +319,8 @@ export async function streamReply(
 
                 const result = await executeToolCall(call);
                 const toolMsgId = crypto.randomUUID();
-                chat.messages.push({
+                const insertIndex = chat.messages.length - 1;
+                chat.messages.splice(insertIndex, 0, {
                     id: toolMsgId,
                     role: "tool",
                     content: result,
@@ -325,18 +340,6 @@ export async function streamReply(
                     }),
                 );
             }
-
-            // Create a fresh reply for the next round
-            replyId = crypto.randomUUID();
-            chat.messages.push({
-                id: replyId,
-                role: "assistant",
-                content: "",
-                done: false,
-                model,
-                steps: [...steps],
-            });
-            reply = chat.messages[chat.messages.length - 1];
         }
     } catch (error) {
         if (!controller.signal.aborted) {

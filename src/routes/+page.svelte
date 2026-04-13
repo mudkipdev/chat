@@ -7,5 +7,7 @@
 
 <div class="flex min-h-screen flex-col items-center gap-10 px-6 pt-[26vh]">
     <h1 class="font-serif text-4xl font-light text-text-200">{greeting}</h1>
-    <PromptBox />
+    <div class="w-full max-w-2xl">
+        <PromptBox />
+    </div>
 </div>
