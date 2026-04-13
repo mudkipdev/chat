@@ -13,8 +13,8 @@ bun preview
 - [X] Saving conversations
 - [X] Extended thinking for better answers
 - [X] Image uploads
+- [X] Web search
 - [ ] Accounts
-- [ ] Web search
 - [ ] Prompt customization
 - [ ] Chat sharing
 
