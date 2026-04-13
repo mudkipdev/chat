@@ -63,6 +63,20 @@ export function clearChatError(): void {
     chatError.message = "";
 }
 
+export async function deleteChat(chatId: string): Promise<void> {
+    try {
+        const res = await fetch(`/api/chats/${chatId}`, { method: "DELETE" });
+        if (!res.ok) {
+            reportError("delete chat", `${res.status}`);
+            return;
+        }
+        delete chats[chatId];
+        recents.items = recents.items.filter((r) => r.id !== chatId);
+    } catch (error) {
+        reportError("delete chat", error);
+    }
+}
+
 export function isStreaming(chatId: string): boolean {
     const chat = chats[chatId];
     if (!chat) return false;

@@ -27,3 +27,18 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
     return json({ id: chat.id, messages: rows });
 };
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+    if (!locals.user) throw error(401, "unauthorized");
+
+    await db
+        .delete(conversations)
+        .where(
+            and(
+                eq(conversations.id, params.id),
+                eq(conversations.userId, locals.user.id),
+            ),
+        );
+
+    return json({ ok: true });
+};

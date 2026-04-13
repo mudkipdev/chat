@@ -2,8 +2,8 @@
     import { onMount } from "svelte";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { Bars3, ArrowRightStartOnRectangle, UserGroup, Icon, Plus } from "@xylightdev/svelte-hero-icons";
-    import { loadRecents, recents, type RecentChat } from "$lib/chats.svelte";
+    import { Bars3, ArrowRightStartOnRectangle, Trash, UserGroup, Icon, Plus, WrenchScrewdriver, AdjustmentsHorizontal } from "@xylightdev/svelte-hero-icons";
+    import { deleteChat, loadRecents, recents, type RecentChat } from "$lib/chats.svelte";
     import { globalState, user, logout } from "$lib/state.svelte";
     import Tooltip from "./Tooltip.svelte";
 
@@ -25,6 +25,12 @@
     function titleOf(chat: RecentChat): string {
         const base = chat.title?.trim() || chat.firstMessage.trim() || "Untitled";
         return base.length > 60 ? `${base.slice(0, 60)}…` : base;
+    }
+
+    async function removeChat(e: MouseEvent, id: string) {
+        e.stopPropagation();
+        await deleteChat(id);
+        if (activeId === id) goto("/");
     }
 
     onMount(() => {
@@ -98,6 +104,17 @@
                 <Icon src={Plus} size="18" />
                 <span>New chat</span>
             </button>
+
+            {#if user.info?.admin}
+                <button
+                    type="button"
+                    onclick={() => goto("/admin")}
+                    class="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm text-text-100 transition-colors duration-100 hover:bg-bg-300"
+                >
+                    <Icon src={AdjustmentsHorizontal} size="18" />
+                    <span>Manage users</span>
+                </button>
+            {/if}
         </div>
 
         <div
@@ -106,22 +123,27 @@
             <div
                 class="px-2 pb-1 text-xs font-medium text-text-500"
             >
-                Recents
+                {#if recents.items.length === 0}No chats yet{:else}Recents{/if}
             </div>
-            {#if recents.items.length === 0}
-                <div class="px-2 py-1 text-sm text-text-400">
-                    {recents.loaded ? "No chats yet" : "Loading…"}
-                </div>
-            {:else}
+
+            {#if recents.items.length > 0}
                 <ul class="flex flex-col">
                     {#each recents.items as chat (chat.id)}
-                        <li>
+                        <li class="group relative">
                             <button
                                 type="button"
                                 onclick={() => openChat(chat.id)}
-                                class="flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 text-left text-sm text-text-100 transition-colors duration-100 hover:bg-bg-300 {activeId === chat.id? 'bg-bg-300' : ''}"
+                                class="flex w-full cursor-pointer items-center rounded-md px-2 py-1.5 pr-8 text-left text-sm text-text-100 transition-colors duration-100 hover:bg-bg-300 {activeId === chat.id ? 'bg-bg-300' : ''}"
                             >
                                 <span class="truncate">{titleOf(chat)}</span>
+                            </button>
+                            <button
+                                type="button"
+                                aria-label="Delete chat"
+                                onclick={(e) => removeChat(e, chat.id)}
+                                class="absolute right-1 top-1/2 -translate-y-1/2 flex size-6 cursor-pointer items-center justify-center rounded-md text-text-400 opacity-0 transition-opacity duration-100 hover:text-danger-100 group-hover:opacity-100"
+                            >
+                                <Icon src={Trash} size="14" />
                             </button>
                         </li>
                     {/each}
@@ -130,18 +152,6 @@
         </div>
 
         {#if user.info}
-            <div class="border-t border-black/5 dark:border-border-300/15 px-3 py-2 flex flex-col gap-1">
-                {#if user.info.admin}
-                    <button
-                        type="button"
-                        onclick={() => goto("/admin")}
-                        class="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-300 transition-colors duration-100 hover:bg-bg-300 hover:text-text-100"
-                    >
-                        <Icon src={UserGroup} size="16" />
-                        <span>Manage users</span>
-                    </button>
-                {/if}
-            </div>
             <div class="border-t border-black/5 dark:border-border-300/15 px-4 py-3 flex items-center justify-between">
                 <span class="truncate text-sm text-text-300">{user.info.displayName}</span>
                 <Tooltip text="Sign out" placement="top">

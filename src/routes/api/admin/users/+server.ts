@@ -32,8 +32,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
         throw error(400, "username and password required");
     }
 
-    if (username.length < 3 || username.length > 32 || !/^[a-zA-Z0-9_]+$/.test(username)) {
-        throw error(400, "username must be 3-32 alphanumeric characters or underscores");
+    if (username.length < 1 || username.length > 24 || !/^[a-zA-Z0-9_]+$/.test(username)) {
+        throw error(400, "username must be 1-24 alphanumeric characters or underscores");
     }
 
     if (password.length < 8) {
