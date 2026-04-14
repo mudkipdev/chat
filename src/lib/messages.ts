@@ -3,7 +3,8 @@ import type { ToolCall } from "./llm";
 export type Step =
     | { type: "thinking"; text: string }
     | { type: "search"; query: string }
-    | { type: "fetch"; url: string };
+    | { type: "fetch"; url: string }
+    | { type: "sandbox"; tool: string; detail: string };
 
 export type UserMeta = {
     images?: string[];

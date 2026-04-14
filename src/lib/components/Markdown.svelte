@@ -1,8 +1,36 @@
 <script lang="ts">
-    import { marked } from "marked";
-    let { content }: { content: string } = $props();
+    import { marked, type Tokens } from "marked";
+    import { ArrowDownTray, DocumentText, Icon } from "@xylightdev/svelte-hero-icons";
+
+    let { content, sandboxId }: { content: string; sandboxId?: string } = $props();
+
+    const SANDBOX_PREFIX = "/home/user/";
+
+    const renderer = new marked.Renderer();
+
+    renderer.image = ({ href, text }: Tokens.Image) => {
+        if (href.startsWith(SANDBOX_PREFIX)) {
+            const fileName = text || href.split("/").pop() || "file";
+            const downloadUrl = sandboxId
+                ? `/api/sandbox/file?sandbox=${encodeURIComponent(sandboxId)}&path=${encodeURIComponent(href)}`
+                : "#";
+
+            return `<div class="sandbox-file">
+                <div class="sandbox-file-info">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>
+                    <span>${fileName}</span>
+                </div>
+                <a href="${downloadUrl}" download="${fileName}" class="sandbox-file-download">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                </a>
+            </div>`;
+        }
+
+        return `<img src="${href}" alt="${text}" />`;
+    };
+
     marked.setOptions({ breaks: true, gfm: true });
-    const html = $derived(marked.parse(content, { async: false }) as string);
+    const html = $derived(marked.parse(content, { renderer, async: false }) as string);
 </script>
 
 <div class="markdown">
@@ -159,5 +187,43 @@
 
     .markdown :global(strong) {
         font-weight: 600;
+    }
+
+    .markdown :global(.sandbox-file) {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 0.75rem 0;
+        padding: 0.75rem 1rem;
+        border: 1px solid hsl(var(--border-300) / 0.2);
+        border-radius: 8px;
+        background: hsl(var(--bg-200));
+        font-family: var(--font-sans);
+    }
+
+    .markdown :global(.sandbox-file-info) {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        color: hsl(var(--text-200));
+        font-size: 0.875rem;
+    }
+
+    .markdown :global(.sandbox-file-download) {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 6px;
+        color: hsl(var(--text-300));
+        text-decoration: none;
+        transition: background 0.1s, color 0.1s;
+    }
+
+    .markdown :global(.sandbox-file-download:hover) {
+        background: hsl(var(--bg-300));
+        color: hsl(var(--text-100));
+        opacity: 1;
     }
 </style>

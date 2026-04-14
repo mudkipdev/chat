@@ -1,6 +1,6 @@
-import { chatStream, WEB_TOOLS, type ChatMessage, type ToolCall } from "./llm";
+import { chatStream, WEB_TOOLS, SANDBOX_TOOLS, type ChatMessage, type ToolCall, type ToolDefinition } from "./llm";
 import type { Step, AssistantMeta } from "./messages";
-import { createPrompt } from "./prompt";
+import { createPrompt as createSystemPrompt, type PromptContext } from "./prompt";
 
 export type { Step } from "./messages";
 
@@ -197,6 +197,9 @@ export function appendUserMessage(
     );
 }
 
+// Sandbox ID persists across tool rounds within a single stream.
+export const sandboxState = $state<{ id: string | undefined }>({ id: undefined });
+
 async function executeToolCall(call: ToolCall): Promise<string> {
     const { name, arguments: args } = call.function;
 
@@ -220,6 +223,24 @@ async function executeToolCall(call: ToolCall): Promise<string> {
             if (!res.ok) return `Fetch failed: ${res.status}`;
             return await res.text();
         }
+
+        if (name.startsWith("container.")) {
+            const res = await fetch("/api/sandbox/exec", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    sandboxId: sandboxState.id,
+                    tool: name,
+                    args: typeof args === "string" ? JSON.parse(args) : args,
+                }),
+            });
+            const data = (await res.json()) as { sandboxId: string; output: string; exitCode?: number };
+            sandboxState.id = data.sandboxId;
+            if (data.exitCode !== undefined && data.exitCode !== 0) {
+                return `Exit code ${data.exitCode}\n${data.output}`;
+            }
+            return data.output;
+        }
     } catch (err) {
         const detail = err instanceof Error ? err.message : String(err);
         return `Tool error: ${detail}`;
@@ -228,16 +249,20 @@ async function executeToolCall(call: ToolCall): Promise<string> {
     return `Unknown tool: ${name}`;
 }
 
-function buildHistory(msgs: Message[]): ChatMessage[] {
+function buildHistory(messages: Message[], context: PromptContext): ChatMessage[] {
     return [
-        { role: "system", content: createPrompt() },
-        ...msgs.map(({ role, content, images, tool_calls, tool_call_id }) => {
-            const msg: ChatMessage = { role, content };
-            if (images && images.length > 0) msg.images = images;
-            if (tool_calls && tool_calls.length > 0) msg.tool_calls = tool_calls;
-            if (tool_call_id) msg.tool_call_id = tool_call_id;
-            return msg;
-        }),
+        {
+            role: "system",
+            content: createSystemPrompt(context)
+        },
+
+        ...messages.map(({ role, content, images, tool_calls, tool_call_id }) => {
+            const message: ChatMessage = { role, content };
+            if (images && images.length > 0) message.images = images;
+            if (tool_calls && tool_calls.length > 0) message.tool_calls = tool_calls;
+            if (tool_call_id) message.tool_call_id = tool_call_id;
+            return message;
+        })
     ];
 }
 
@@ -246,6 +271,7 @@ export async function streamReply(
     model: string,
     think = false,
     webBrowsing = false,
+    sandbox = false,
 ): Promise<void> {
     const chat = chats[chatId];
     if (!chat) return;
@@ -253,7 +279,22 @@ export async function streamReply(
     const controller = new AbortController();
     activeStreams[chatId] = controller;
 
-    const tools = webBrowsing ? WEB_TOOLS : undefined;
+    const toolList: ToolDefinition[] = [];
+    if (webBrowsing) toolList.push(...WEB_TOOLS);
+    if (sandbox) toolList.push(...SANDBOX_TOOLS);
+    const tools = toolList.length > 0 ? toolList : undefined;
+
+    const promptContext: PromptContext = {
+        model,
+        tools: {
+            webBrowsing,
+            sandbox
+        },
+        date: new Date()
+    };
+
+    // Reset sandbox for this stream
+    sandboxState.id = undefined;
     const MAX_TOOL_ROUNDS = 5;
 
     let replyId = crypto.randomUUID();
@@ -275,7 +316,7 @@ export async function streamReply(
         for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
             // Build history from all messages EXCEPT the current in-progress reply
             const settled = chat.messages.slice(0, -1);
-            const history = buildHistory(settled);
+            const history = buildHistory(settled, promptContext);
 
             let toolCalls: ToolCall[] | undefined;
 
@@ -337,6 +378,14 @@ export async function streamReply(
                     steps.push({ type: "search", query: String(args.query ?? "") });
                 } else if (name === "web_fetch") {
                     steps.push({ type: "fetch", url: String(args.url ?? "") });
+                } else if (name.startsWith("container.")) {
+                    const detail =
+                        name === "container.run_command" ? String(args.command ?? "")
+                        : name === "container.read_file" ? String(args.path ?? "")
+                        : name === "container.write_file" ? String(args.path ?? "")
+                        : name === "container.edit_file" ? String(args.path ?? "")
+                        : name;
+                    steps.push({ type: "sandbox", tool: name, detail });
                 }
                 reply.steps = [...steps];
 
@@ -401,6 +450,7 @@ export function retryLast(
     model: string,
     think = false,
     webBrowsing = false,
+    sandbox = false,
 ): Promise<void> | undefined {
     const chat = chats[chatId];
     if (!chat) return;
@@ -415,5 +465,5 @@ export function retryLast(
         );
     }
 
-    return streamReply(chatId, model, think, webBrowsing);
+    return streamReply(chatId, model, think, webBrowsing, sandbox);
 }

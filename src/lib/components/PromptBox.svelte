@@ -2,6 +2,7 @@
     import { goto } from "$app/navigation";
     import {
         ArrowUp,
+        CommandLine,
         GlobeAlt,
         Icon,
         LightBulb,
@@ -19,11 +20,12 @@
         stopStream,
         streamReply,
     } from "$lib/chats.svelte";
-    import { globalState, exaStatus, checkExaStatus } from "$lib/state.svelte";
+    import { globalState, exaStatus, checkExaStatus, sandboxStatus, checkSandboxStatus } from "$lib/state.svelte";
     import ModelPicker from "./ModelPicker.svelte";
     import Tooltip from "./Tooltip.svelte";
 
     checkExaStatus();
+    checkSandboxStatus();
 
     let {
         chatId,
@@ -137,7 +139,7 @@
 
         if (chatId) {
             appendUserMessage(chatId, content, images);
-            streamReply(chatId, globalState.model, globalState.thinking, globalState.webBrowsing);
+            streamReply(chatId, globalState.model, globalState.thinking, globalState.webBrowsing, globalState.sandbox);
             return;
         }
 
@@ -151,6 +153,10 @@
 
     function toggleWebBrowsing() {
         globalState.webBrowsing = !globalState.webBrowsing;
+    }
+
+    function toggleSandbox() {
+        globalState.sandbox = !globalState.sandbox;
     }
 
     function stop() {
@@ -292,6 +298,26 @@
                                   : 'cursor-pointer text-text-300 hover:bg-bg-200'}"
                         >
                             <Icon src={GlobeAlt} size="20" />
+                        </button>
+                    </Tooltip>
+                {/if}
+
+                {#if sandboxStatus.available}
+                    <Tooltip
+                        text={globalState.sandbox
+                            ? "Disable sandbox"
+                            : "Enable sandbox"}
+                    >
+                        <button
+                            type="button"
+                            aria-label="Enable sandbox"
+                            aria-pressed={globalState.sandbox}
+                            onclick={toggleSandbox}
+                            class="flex size-9 cursor-pointer items-center justify-center rounded-md transition-colors duration-100 {globalState.sandbox
+                                ? 'bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
+                                : 'text-text-300 hover:bg-bg-200'}"
+                        >
+                            <Icon src={CommandLine} size="20" />
                         </button>
                     </Tooltip>
                 {/if}

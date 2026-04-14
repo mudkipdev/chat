@@ -9,6 +9,7 @@ export type GlobalState = {
     model: string;
     thinking: boolean;
     webBrowsing: boolean;
+    sandbox: boolean;
     sidebarCollapsed: boolean;
 };
 
@@ -18,6 +19,7 @@ const DEFAULTS: GlobalState = {
     model: "",
     thinking: false,
     webBrowsing: false,
+    sandbox: false,
     sidebarCollapsed: false,
 };
 
@@ -70,6 +72,7 @@ export async function logout(): Promise<void> {
 }
 
 export const exaStatus = $state({ available: false, checked: false });
+export const sandboxStatus = $state({ available: false, checked: false });
 
 export async function checkExaStatus(): Promise<void> {
     if (exaStatus.checked) return;
@@ -83,4 +86,18 @@ export async function checkExaStatus(): Promise<void> {
         // Exa unavailable
     }
     exaStatus.checked = true;
+}
+
+export async function checkSandboxStatus(): Promise<void> {
+    if (sandboxStatus.checked) return;
+    try {
+        const res = await fetch("/api/sandbox/status");
+        if (res.ok) {
+            const data = (await res.json()) as { available: boolean };
+            sandboxStatus.available = data.available;
+        }
+    } catch {
+        // Sandbox unavailable
+    }
+    sandboxStatus.checked = true;
 }

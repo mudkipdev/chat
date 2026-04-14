@@ -4,17 +4,32 @@
     import { cubicOut } from "svelte/easing";
     import { goto } from "$app/navigation";
     import { page } from "$app/state";
-    import { ChevronRight, MagnifyingGlass, GlobeAlt, Icon } from "@xylightdev/svelte-hero-icons";
+    import { ChevronRight, CommandLine, DocumentText, MagnifyingGlass, GlobeAlt, Icon, PencilSquare } from "@xylightdev/svelte-hero-icons";
     import Markdown from "$lib/components/Markdown.svelte";
     import MessageActions from "$lib/components/MessageActions.svelte";
     import PromptBox from "$lib/components/PromptBox.svelte";
-    import { chats, loadChat, retryLast, streamReply } from "$lib/chats.svelte";
+    import { sandboxState, chats, loadChat, retryLast, streamReply } from "$lib/chats.svelte";
     import { globalState } from "$lib/state.svelte";
 
     const chatId = $derived(page.params.uuid!);
     const chat = $derived(chats[chatId]);
 
     let stepsOpen = $state<Record<string, boolean>>({});
+
+    // Collect all assistant content from a turn (multiple messages between user messages)
+    function turnContent(index: number): string {
+        if (!chat) return "";
+        const parts: string[] = [];
+        // Walk backwards to find the start of this assistant turn
+        let start = index;
+        while (start > 0 && chat.messages[start - 1]?.role !== "user") start--;
+        // Collect content from all assistant messages in this turn
+        for (let i = start; i <= index; i++) {
+            const m = chat.messages[i];
+            if (m.role === "assistant" && m.content) parts.push(m.content);
+        }
+        return parts.join("\n\n");
+    }
 
     function toggleSteps(id: string) {
         stepsOpen[id] = !stepsOpen[id];
@@ -40,7 +55,7 @@
         }
         const last = current.messages[current.messages.length - 1];
         if (last?.role === "user")
-            streamReply(id, globalState.model, globalState.thinking, globalState.webBrowsing);
+            streamReply(id, globalState.model, globalState.thinking, globalState.webBrowsing, globalState.sandbox);
     });
 </script>
 
@@ -49,10 +64,11 @@
         <div class="mx-auto max-w-3xl space-y-6 px-6 py-10">
             {#if chat}
                 {#each chat.messages as message, index (index)}
+                    {@const isLastAssistant = message.role === "assistant" && !message.tool_calls?.length}
+                    {@const prevAssistantSteps = chat.messages.slice(0, index).findLast((m) => m.role === "assistant")?.steps?.length ?? 0}
+                    {@const ownSteps = (message.steps ?? []).slice(prevAssistantSteps)}
                     {#if message.role === "tool"}
                         <!-- tool results are internal context, not displayed -->
-                    {:else if message.role === "assistant" && message.tool_calls?.length}
-                        <!-- tool-calling assistant messages are internal context, not displayed -->
                     {:else if message.role === "user"}
                         <div class="flex justify-end">
                             <div
@@ -72,8 +88,7 @@
                                 </div>
                             {/if}
 
-                            {#if message.steps?.length || (message.thinking && !message.steps)}
-                                {@const hasSteps = !!message.steps?.length}
+                            {#if ownSteps.length > 0 || (prevAssistantSteps === 0 && message.thinking && !message.steps)}
                                 {@const isThinking = message.done === false && !message.content}
                                 <div class="mb-3 font-sans">
                                     <button
@@ -106,8 +121,8 @@
                                             transition:slide={{ duration: 200, easing: cubicOut }}
                                             class="mt-2 ml-1.5 overflow-visible"
                                         >
-                                            {#if hasSteps}
-                                                {#each message.steps as step}
+                                            {#if ownSteps.length > 0}
+                                                {#each ownSteps as step}
                                                     {#if step.type === "thinking"}
                                                         <div class="border-l-2 border-bg-400 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
                                                             {step.text}
@@ -122,6 +137,19 @@
                                                             <Icon src={MagnifyingGlass} size="18" class="shrink-0" />
                                                             <span class="truncate">Fetched {step.url}</span>
                                                         </div>
+                                                    {:else if step.type === "sandbox"}
+                                                        <div class="flex items-center gap-3 -ml-[8px] my-[2px] py-2 text-sm text-text-300">
+                                                            {#if step.tool === "container.run_command"}
+                                                                <Icon src={CommandLine} size="18" class="shrink-0" />
+                                                                <span class="truncate font-mono">{step.detail}</span>
+                                                            {:else if step.tool === "container.read_file"}
+                                                                <Icon src={DocumentText} size="18" class="shrink-0" />
+                                                                <span class="truncate">Read {step.detail}</span>
+                                                            {:else}
+                                                                <Icon src={PencilSquare} size="18" class="shrink-0" />
+                                                                <span class="truncate">{step.tool === "container.write_file" ? "Wrote" : "Edited"} {step.detail}</span>
+                                                            {/if}
+                                                        </div>
                                                     {/if}
                                                 {/each}
                                             {:else if message.thinking}
@@ -135,7 +163,7 @@
                             {/if}
 
                             <div class="font-serif text-text-100">
-                                <Markdown content={message.content} />
+                                <Markdown content={message.content} sandboxId={sandboxState.id} />
                             </div>
 
                             {#if message.error}
@@ -147,15 +175,16 @@
                                 </div>
                             {/if}
 
-                            {#if message.done !== false}
+                            {#if isLastAssistant && message.done !== false}
                                 <MessageActions
-                                    content={message.content}
+                                    content={turnContent(index)}
                                     onRetry={() =>
                                         retryLast(
                                             chatId,
                                             globalState.model,
                                             globalState.thinking,
                                             globalState.webBrowsing,
+                                            globalState.sandbox,
                                         )}
                                 />
                             {/if}

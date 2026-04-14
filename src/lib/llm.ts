@@ -79,6 +79,91 @@ export const WEB_TOOLS: ToolDefinition[] = [
     },
 ];
 
+export const SANDBOX_TOOLS: ToolDefinition[] = [
+    {
+        type: "function",
+        function: {
+            name: "container.run_command",
+            description: "Run a shell command in a sandboxed Linux container. Use for executing code, installing packages, or running scripts.",
+            parameters: {
+                type: "object",
+                properties: {
+                    command: {
+                        type: "string",
+                        description: "The shell command to execute",
+                    },
+                },
+                required: ["command"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "container.read_file",
+            description: "Read the contents of a file in the sandbox container.",
+            parameters: {
+                type: "object",
+                properties: {
+                    path: {
+                        type: "string",
+                        description: "Absolute path to the file to read",
+                    },
+                },
+                required: ["path"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "container.write_file",
+            description:
+                "Write content to a file in the sandbox container. Creates the file and any parent directories if they don't exist.",
+            parameters: {
+                type: "object",
+                properties: {
+                    path: {
+                        type: "string",
+                        description: "Absolute path to the file to write",
+                    },
+                    content: {
+                        type: "string",
+                        description: "The content to write to the file",
+                    },
+                },
+                required: ["path", "content"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "container.edit_file",
+            description:
+                "Edit a file by replacing an exact string match with new content.",
+            parameters: {
+                type: "object",
+                properties: {
+                    path: {
+                        type: "string",
+                        description: "Absolute path to the file to edit",
+                    },
+                    old_string: {
+                        type: "string",
+                        description: "The exact string to find and replace",
+                    },
+                    new_string: {
+                        type: "string",
+                        description: "The replacement string",
+                    },
+                },
+                required: ["path", "old_string", "new_string"],
+            },
+        },
+    },
+];
+
 type ModelsResponse = {
     models: Model[];
 };
