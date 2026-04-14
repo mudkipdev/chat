@@ -14,7 +14,8 @@ bun preview
 - [X] Extended thinking for better answers
 - [X] Image uploads
 - [X] Web search
-- [ ] Accounts
+- [X] Accounts
+- [X] Container sandbox
 - [ ] Prompt customization
 - [ ] Chat sharing
 
