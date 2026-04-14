@@ -7,6 +7,8 @@ bun install
 bun preview
 ```
 
+Run the Docker image instead to have the sandboxed container tool available.
+
 ## Features
 - [X] Sending messages and streaming responses
 - [X] Choosing between multiple models running locally

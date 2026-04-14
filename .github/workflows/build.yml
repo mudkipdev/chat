@@ -19,7 +19,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Type Check
-        run: bunx svelte-check --threshold error
+        run: bunx svelte-kit sync && bunx svelte-check --threshold error
 
       - name: Build
         run: bun run build
