@@ -8,7 +8,7 @@
     import Markdown from "$lib/components/Markdown.svelte";
     import MessageActions from "$lib/components/MessageActions.svelte";
     import PromptBox from "$lib/components/PromptBox.svelte";
-    import { sandboxState, chats, loadChat, retryLast, streamReply } from "$lib/chats.svelte";
+    import { sandboxState, chats, loadChat, retryLast, streamReply, type Chat } from "$lib/chats.svelte";
     import { globalState } from "$lib/state.svelte";
 
     const chatId = $derived(page.params.uuid!);
@@ -48,7 +48,7 @@
     // Auto-reply on initial page load if the last message is from the user
     onMount(async () => {
         const id = chatId;
-        let current = chats[id];
+        let current: Chat | null = chats[id] ?? null;
         if (!current) {
             current = await loadChat(id);
             if (!current) return;

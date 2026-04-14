@@ -201,7 +201,8 @@ export function appendUserMessage(
 export const sandboxState = $state<{ id: string | undefined }>({ id: undefined });
 
 async function executeToolCall(call: ToolCall): Promise<string> {
-    const { name, arguments: args } = call.function;
+    const { name, arguments: rawArgs } = call.function;
+    const args = (typeof rawArgs === "string" ? JSON.parse(rawArgs) : rawArgs) as Record<string, unknown>;
 
     try {
         if (name === "web_search") {
@@ -373,17 +374,18 @@ export async function streamReply(
             // Execute each tool call and add steps.
             // Insert tool messages just before the new reply so history order is correct.
             for (const call of toolCalls) {
-                const { name, arguments: args } = call.function;
+                const { name, arguments: rawStepArgs } = call.function;
+                const stepArgs = (typeof rawStepArgs === "string" ? JSON.parse(rawStepArgs) : rawStepArgs) as Record<string, unknown>;
                 if (name === "web_search") {
-                    steps.push({ type: "search", query: String(args.query ?? "") });
+                    steps.push({ type: "search", query: String(stepArgs.query ?? "") });
                 } else if (name === "web_fetch") {
-                    steps.push({ type: "fetch", url: String(args.url ?? "") });
+                    steps.push({ type: "fetch", url: String(stepArgs.url ?? "") });
                 } else if (name.startsWith("container.")) {
                     const detail =
-                        name === "container.run_command" ? String(args.command ?? "")
-                        : name === "container.read_file" ? String(args.path ?? "")
-                        : name === "container.write_file" ? String(args.path ?? "")
-                        : name === "container.edit_file" ? String(args.path ?? "")
+                        name === "container.run_command" ? String(stepArgs.command ?? "")
+                        : name === "container.read_file" ? String(stepArgs.path ?? "")
+                        : name === "container.write_file" ? String(stepArgs.path ?? "")
+                        : name === "container.edit_file" ? String(stepArgs.path ?? "")
                         : name;
                     steps.push({ type: "sandbox", tool: name, detail });
                 }
