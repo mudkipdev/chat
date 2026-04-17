@@ -103,9 +103,15 @@
         font-family: var(--font-mono);
         font-size: 0.8em;
 
-        color: var(--color-red-400);
+        color: var(--color-red-700);
         border: 1px solid hsl(var(--border-300) / 0.2);
         border-radius: 6px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        .markdown :global(code) {
+            color: var(--color-red-400);
+        }
     }
 
     .markdown :global(pre) {
