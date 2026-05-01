@@ -41,6 +41,8 @@
         base64?: string;
     };
 
+    type ToolId = "thinking" | "webBrowsing" | "sandbox";
+
     let draft = $state("");
     let attachments = $state<Attachment[]>([]);
     let textarea: HTMLTextAreaElement;
@@ -123,6 +125,31 @@
             ? chats[chatId]?.messages.some((m) => m.role === "tool") ?? false
             : false,
     );
+    const visibleTools = $derived([
+        "thinking",
+        ...(exaStatus.available ? (["webBrowsing"] as const) : []),
+        ...(sandboxStatus.available ? (["sandbox"] as const) : []),
+    ] as ToolId[]);
+
+    function toolActive(tool: ToolId) {
+        if (tool === "thinking") return globalState.thinking;
+        if (tool === "webBrowsing") return globalState.webBrowsing;
+        return globalState.sandbox;
+    }
+
+    function toolSelectionClass(tool: ToolId) {
+        if (!toolActive(tool)) return "";
+
+        const index = visibleTools.indexOf(tool);
+        const previousActive = index > 0 && toolActive(visibleTools[index - 1]);
+        const nextActive =
+            index < visibleTools.length - 1 && toolActive(visibleTools[index + 1]);
+
+        if (previousActive && nextActive) return "rounded-none";
+        if (previousActive) return "rounded-l-none rounded-r-lg";
+        if (nextActive) return "rounded-l-lg rounded-r-none";
+        return "rounded-lg";
+    }
 
     function send() {
         if (!canSend) return;
@@ -253,74 +280,76 @@
                         type="button"
                         aria-label="Add files"
                         onclick={openFilePicker}
-                        class="flex size-9 cursor-pointer items-center justify-center rounded-md text-text-300 transition-colors duration-100 hover:bg-bg-200"
+                        class="flex size-9 cursor-pointer items-center justify-center rounded-lg text-text-300 transition-colors duration-100 hover:bg-bg-200"
                     >
                         <Icon src={Plus} size="20" />
                     </button>
                 </Tooltip>
 
-                <Tooltip
-                    text={globalState.thinking
-                        ? "Disable thinking"
-                        : "Enable thinking"}
-                >
-                    <button
-                        type="button"
-                        aria-label="Enable thinking"
-                        aria-pressed={globalState.thinking}
-                        onclick={toggleThinking}
-                        class="flex size-9 cursor-pointer items-center justify-center rounded-md transition-colors duration-100 {globalState.thinking
-                            ? 'bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
-                            : 'text-text-300 hover:bg-bg-200'}"
-                    >
-                        <Icon src={LightBulb} size="20" />
-                    </button>
-                </Tooltip>
-
-                {#if exaStatus.available}
+                <div class="flex items-center">
                     <Tooltip
-                        text={browseLocked
-                            ? "Start a new chat to disable web browsing"
-                            : globalState.webBrowsing
-                              ? "Disable web browsing"
-                              : "Enable web browsing"}
+                        text={globalState.thinking
+                            ? "Disable thinking"
+                            : "Enable thinking"}
                     >
                         <button
                             type="button"
-                            aria-label="Enable web browsing"
-                            aria-pressed={globalState.webBrowsing}
-                            disabled={browseLocked}
-                            onclick={toggleWebBrowsing}
-                            class="flex size-9 items-center justify-center rounded-md transition-colors duration-100 {browseLocked
-                                ? 'cursor-not-allowed bg-accent-100/10 text-accent-100 opacity-50'
+                            aria-label="Enable thinking"
+                            aria-pressed={globalState.thinking}
+                            onclick={toggleThinking}
+                            class="flex size-9 cursor-pointer items-center justify-center transition-all duration-200 ease-out {globalState.thinking
+                                ? `bg-accent-100/10 text-accent-100 hover:bg-accent-100/15 ${toolSelectionClass('thinking')}`
+                                : 'rounded-lg text-text-300 hover:bg-bg-200'}"
+                        >
+                            <Icon src={LightBulb} size="20" />
+                        </button>
+                    </Tooltip>
+
+                    {#if exaStatus.available}
+                        <Tooltip
+                            text={browseLocked
+                                ? "Start a new chat to disable web browsing"
                                 : globalState.webBrowsing
-                                  ? 'cursor-pointer bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
-                                  : 'cursor-pointer text-text-300 hover:bg-bg-200'}"
+                                  ? "Disable web browsing"
+                                  : "Enable web browsing"}
                         >
-                            <Icon src={GlobeAlt} size="20" />
-                        </button>
-                    </Tooltip>
-                {/if}
+                            <button
+                                type="button"
+                                aria-label="Enable web browsing"
+                                aria-pressed={globalState.webBrowsing}
+                                disabled={browseLocked}
+                                onclick={toggleWebBrowsing}
+                                class="flex size-9 items-center justify-center transition-all duration-200 ease-out {browseLocked
+                                    ? `cursor-not-allowed bg-accent-100/10 text-accent-100 opacity-50 ${toolSelectionClass('webBrowsing')}`
+                                    : globalState.webBrowsing
+                                      ? `cursor-pointer bg-accent-100/10 text-accent-100 hover:bg-accent-100/15 ${toolSelectionClass('webBrowsing')}`
+                                      : 'cursor-pointer rounded-lg text-text-300 hover:bg-bg-200'}"
+                            >
+                                <Icon src={GlobeAlt} size="20" />
+                            </button>
+                        </Tooltip>
+                    {/if}
 
-                {#if sandboxStatus.available}
-                    <Tooltip
-                        text={globalState.sandbox
-                            ? "Disable sandbox"
-                            : "Enable sandbox"}
-                    >
-                        <button
-                            type="button"
-                            aria-label="Enable sandbox"
-                            aria-pressed={globalState.sandbox}
-                            onclick={toggleSandbox}
-                            class="flex size-9 cursor-pointer items-center justify-center rounded-md transition-colors duration-100 {globalState.sandbox
-                                ? 'bg-accent-100/10 text-accent-100 hover:bg-accent-100/15'
-                                : 'text-text-300 hover:bg-bg-200'}"
+                    {#if sandboxStatus.available}
+                        <Tooltip
+                            text={globalState.sandbox
+                                ? "Disable sandbox"
+                                : "Enable sandbox"}
                         >
-                            <Icon src={CommandLine} size="20" />
-                        </button>
-                    </Tooltip>
-                {/if}
+                            <button
+                                type="button"
+                                aria-label="Enable sandbox"
+                                aria-pressed={globalState.sandbox}
+                                onclick={toggleSandbox}
+                                class="flex size-9 cursor-pointer items-center justify-center transition-all duration-200 ease-out {globalState.sandbox
+                                    ? `bg-accent-100/10 text-accent-100 hover:bg-accent-100/15 ${toolSelectionClass('sandbox')}`
+                                    : 'rounded-lg text-text-300 hover:bg-bg-200'}"
+                            >
+                                <Icon src={CommandLine} size="20" />
+                            </button>
+                        </Tooltip>
+                    {/if}
+                </div>
             </div>
 
             <div class="flex items-center">

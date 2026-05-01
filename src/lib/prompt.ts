@@ -19,7 +19,6 @@ export function createPrompt(context: PromptContext): string {
 
     let prompt = "You are a helpful, honest, and thoughtful AI assistant.";
     prompt += " Respond warmly and naturally, using clear prose rather than excessive formatting.";
-    prompt += " When uncertain, say so rather than guessing.";
     prompt += `\nThe current date is ${formattedDate}.`;
 
     if (context.tools.webBrowsing) {
@@ -33,6 +32,5 @@ export function createPrompt(context: PromptContext): string {
         prompt += "\nOnce you're done with a file, immediately send it to the user by using the ![file_name.txt](/home/user/file_name.txt) syntax in your response."
     }
 
-    console.log(prompt);
     return prompt;
 }

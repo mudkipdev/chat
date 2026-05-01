@@ -76,7 +76,7 @@
         bind:this={trigger}
         type="button"
         onclick={() => (open = !open)}
-        class="flex cursor-pointer items-center gap-1 rounded-md px-3 py-2 text-sm text-text-300 transition-colors duration-100 hover:bg-bg-200"
+        class="flex cursor-pointer items-center gap-1 rounded-lg px-3 py-2 text-sm text-text-300 transition-colors duration-100 hover:bg-bg-200"
     >
         <span>{current?.name ?? globalState.model}</span>
         <Icon src={ChevronDown} size="16" />

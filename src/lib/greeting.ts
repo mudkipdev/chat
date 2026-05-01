@@ -5,6 +5,19 @@ export type Identity =
 
 type TimeOfDay = "morning" | "afternoon" | "evening" | "lateNight";
 
+const MODEL_BRANDS = [
+    { needle: "gemma", name: "Gemma" },
+    { needle: "nemotron", name: "Nemotron" },
+    { needle: "mistral", name: "Mistral" },
+    { needle: "gpt-oss", name: "GPT" },
+    { needle: "qwen", name: "Qwen" },
+    { needle: "kimi", name: "Kimi" },
+    { needle: "deepseek", name: "DeepSeek" },
+    { needle: "glm", name: "GLM" },
+    { needle: "minimax", name: "MiniMax" },
+    { needle: "lfm", name: "LFM" }
+] as const;
+
 const WEEKDAY_GREETINGS: Record<number, string> = {
     1: "Happy Monday",
     2: "Happy Tuesday",
@@ -37,15 +50,19 @@ function isGoldenHour(date: Date, hour: number): boolean {
     return earlySlot ? hour > 16 && hour < 18 : hour > 18 && hour < 19;
 }
 
+const getModelBrand = (modelName: string) => MODEL_BRANDS.find(brand => modelName.toLowerCase().includes(brand.needle))?.name;
+
 function buildPool(
     identity: Identity,
     time: TimeOfDay,
     day: number,
     goldenHour: boolean,
+    modelName: string,
 ): string[] {
     const pool: string[] = [];
     const named = identity.kind === "named";
     const tail = named ? `, ${identity.name}` : "";
+    const modelBrand = getModelBrand(modelName);
 
     if (identity.kind === "incognito") {
         if (time === "morning") pool.push("Let's chat incognito");
@@ -72,7 +89,7 @@ function buildPool(
             pool.push(`Happy Sunday${tail}`);
         }
 
-        pool.push("Coffee and Claude time?");
+        if (modelBrand) pool.push(`Coffee and ${modelBrand} time?`);
     }
 
     if (time === "afternoon") {
@@ -95,18 +112,17 @@ function buildPool(
     }
 
     if (goldenHour) pool.push("Golden hour thinking");
-
     return pool;
 }
 
-export function pickGreeting(identity: Identity): string {
+export function pickGreeting(identity: Identity, modelName = ""): string {
     const date = new Date();
     const hour = date.getHours();
     const day = date.getDay();
     const time = timeOfDay(hour);
     const goldenHour = isGoldenHour(date, hour);
 
-    const pool = buildPool(identity, time, day, goldenHour);
+    const pool = buildPool(identity, time, day, goldenHour, modelName);
 
     if (pool.length === 0) {
         pool.push(identity.kind === "named" ? `Hey there, ${identity.name}` : "Hey there");

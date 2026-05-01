@@ -1,13 +1,14 @@
 <script lang="ts">
     import PromptBox from "$lib/components/PromptBox.svelte";
     import { pickGreeting } from "$lib/greeting";
-    import { user } from "$lib/state.svelte";
+    import { globalState, user } from "$lib/state.svelte";
 
     const greeting = $derived(
         pickGreeting(
             user.info
                 ? { kind: "named", name: user.info.displayName }
                 : { kind: "unauthenticated" },
+            globalState.model,
         ),
     );
 </script>

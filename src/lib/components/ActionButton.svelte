@@ -21,7 +21,7 @@
         class="group relative flex size-8 cursor-pointer items-center justify-center text-text-500 transition-colors duration-100 hover:text-text-100"
     >
         <span
-            class="absolute inset-0 rounded-md transition-all duration-100 group-hover:bg-bg-300 group-active:scale-90"
+            class="absolute inset-0 rounded-lg transition-all duration-100 group-hover:bg-bg-300 group-active:scale-90"
         ></span>
 
         <span class="relative inline-flex">
