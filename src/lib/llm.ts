@@ -83,7 +83,7 @@ export const SANDBOX_TOOLS: ToolDefinition[] = [
     {
         type: "function",
         function: {
-            name: "container.run_command",
+            name: "container.bash",
             description: "Run a shell command in a sandboxed Linux container. Use for executing code, installing packages, or running scripts.",
             parameters: {
                 type: "object",
@@ -107,7 +107,7 @@ export const SANDBOX_TOOLS: ToolDefinition[] = [
                 properties: {
                     path: {
                         type: "string",
-                        description: "Absolute path to the file to read",
+                        description: "The absolute path of the file to read",
                     },
                 },
                 required: ["path"],
@@ -125,7 +125,7 @@ export const SANDBOX_TOOLS: ToolDefinition[] = [
                 properties: {
                     path: {
                         type: "string",
-                        description: "Absolute path to the file to write",
+                        description: "The absolute path of the file to write",
                     },
                     content: {
                         type: "string",
@@ -147,7 +147,7 @@ export const SANDBOX_TOOLS: ToolDefinition[] = [
                 properties: {
                     path: {
                         type: "string",
-                        description: "Absolute path to the file to edit",
+                        description: "The absolute path to the file to edit",
                     },
                     old_string: {
                         type: "string",

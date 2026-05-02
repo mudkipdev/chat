@@ -87,7 +87,7 @@
 
 {#if collapsed}
     <aside
-        class="flex h-screen w-14 flex-col items-center gap-2 border-r border-black/5 dark:border-border-300/15 bg-bg-100 py-3"
+        class="flex h-screen w-14 flex-col items-center gap-2 border-r-[0.5px] border-black/5 dark:border-border-300/10 bg-bg-100 py-3"
     >
         <Tooltip text="Expand sidebar" placement="right">
             <button
@@ -126,7 +126,7 @@
     </aside>
 {:else}
     <aside
-        class="flex h-screen w-64 flex-col border-r border-black/5 dark:border-border-300/15 bg-bg-100"
+        class="flex h-screen w-72 flex-col border-r-[0.5px] border-black/5 dark:border-border-300/10 bg-bg-100"
     >
         <div class="flex items-center justify-between px-4 pt-4 pb-2">
             <span class="font-serif text-xl text-text-100">AI Chat</span>
@@ -250,7 +250,7 @@
         {/if}
 
         {#if user.info}
-            <div class="border-t border-black/5 dark:border-border-300/15 px-4 py-3 flex items-center justify-between">
+            <div class="border-t-[0.5px] border-black/5 dark:border-border-300/10 px-4 py-3 flex items-center justify-between">
                 <span class="truncate text-sm text-text-300">{user.info.displayName}</span>
                 <Tooltip text="Sign out" placement="top">
                     <button

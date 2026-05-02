@@ -222,7 +222,7 @@
         </div>
     {/if}
     <div
-        class="flex flex-col gap-3 rounded-2xl bg-bg-000 p-3.5 shadow-sm ring-1 ring-black/10"
+        class="flex flex-col gap-3 rounded-2xl bg-bg-000 p-3.5 shadow-sm ring-1 ring-black/10 dark:ring-white/10"
     >
         <input
             bind:this={fileInput}
@@ -361,7 +361,7 @@
                             type="button"
                             aria-label="Stop response"
                             onclick={stop}
-                            class="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-brand-100 text-white"
+                            class="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-brand-100 text-white transition-colors hover:bg-brand-200 dark:bg-brand-000 dark:hover:bg-brand-200"
                         >
                             <Icon src={Stop} size="16" solid />
                         </button>
@@ -376,7 +376,7 @@
                             type="button"
                             aria-label="Send message"
                             onclick={send}
-                            class="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-brand-100 text-white"
+                            class="flex size-8 cursor-pointer items-center justify-center rounded-lg bg-brand-100 text-white transition-colors hover:bg-brand-200 dark:bg-brand-000 dark:hover:bg-brand-200"
                         >
                             <Icon src={ArrowUp} size="16" />
                         </button>

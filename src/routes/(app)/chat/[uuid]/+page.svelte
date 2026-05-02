@@ -61,7 +61,7 @@
 
 <div class="flex h-screen flex-col">
     <div class="flex-1 overflow-y-auto">
-        <div class="mx-auto max-w-3xl space-y-6 px-6 py-10">
+        <div class="mx-auto max-w-3xl space-y-6 px-6 pt-10 pb-24">
             {#if chat}
                 {#each chat.messages as message, index (index)}
                     {@const isLastAssistant = message.role === "assistant" && !message.tool_calls?.length}
@@ -94,7 +94,7 @@
                                     <button
                                         type="button"
                                         onclick={() => toggleSteps(message.id)}
-                                        class="flex cursor-pointer items-center gap-1 -ml-1 text-sm text-text-400 hover:text-text-200"
+                                        class="flex cursor-pointer items-center gap-1 -ml-px text-sm text-text-400 hover:text-text-200"
                                     >
                                         <span
                                             class="flex transition-transform duration-200 ease-out {stepsOpen[
@@ -110,9 +110,9 @@
                                             {#if isThinking}
                                                 Thinking...
                                             {:else if stepsOpen[message.id]}
-                                                Hide steps
+                                                Hide thinking
                                             {:else}
-                                                Show steps
+                                                Show thinking
                                             {/if}
                                         </span>
                                     </button>
@@ -124,7 +124,7 @@
                                             {#if ownSteps.length > 0}
                                                 {#each ownSteps as step}
                                                     {#if step.type === "thinking"}
-                                                        <div class="border-l-2 border-bg-400 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
+                                                        <div class="border-l-2 border-text-400/30 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
                                                             {step.text}
                                                         </div>
                                                     {:else if step.type === "search"}
@@ -153,7 +153,7 @@
                                                     {/if}
                                                 {/each}
                                             {:else if message.thinking}
-                                                <div class="border-l-2 border-bg-400 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
+                                                <div class="border-l-2 border-text-400/30 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
                                                     {message.thinking}
                                                 </div>
                                             {/if}
@@ -162,7 +162,7 @@
                                 </div>
                             {/if}
 
-                            <div class="font-serif text-text-100">
+                            <div class="font-serif font-[360] text-text-100">
                                 <Markdown content={message.content} sandboxId={sandboxState.id} />
                             </div>
 
