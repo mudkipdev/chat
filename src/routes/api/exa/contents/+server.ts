@@ -12,7 +12,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
     const exa = new Exa(apiKey);
     const result = await exa.getContents([url], {
-        text: { maxCharacters: 10000 },
+        text: { maxCharacters: 5000 },
+        livecrawl: "fallback",
+        livecrawlTimeout: 5000,
     });
 
     const page = result.results[0];

@@ -65,8 +65,7 @@
             {#if chat}
                 {#each chat.messages as message, index (index)}
                     {@const isLastAssistant = message.role === "assistant" && !message.tool_calls?.length}
-                    {@const prevAssistantSteps = chat.messages.slice(0, index).findLast((m) => m.role === "assistant")?.steps?.length ?? 0}
-                    {@const ownSteps = (message.steps ?? []).slice(prevAssistantSteps)}
+                    {@const allSteps = isLastAssistant ? (message.steps ?? []) : []}
                     {#if message.role === "tool"}
                         <!-- tool results are internal context, not displayed -->
                     {:else if message.role === "user"}
@@ -88,7 +87,7 @@
                                 </div>
                             {/if}
 
-                            {#if ownSteps.length > 0 || (prevAssistantSteps === 0 && message.thinking && !message.steps)}
+                            {#if allSteps.length > 0 || (isLastAssistant && message.thinking && !message.steps)}
                                 {@const isThinking = message.done === false && !message.content}
                                 <div class="mb-3 font-sans">
                                     <button
@@ -121,8 +120,8 @@
                                             transition:slide={{ duration: 200, easing: cubicOut }}
                                             class="mt-2 ml-1.5 overflow-visible"
                                         >
-                                            {#if ownSteps.length > 0}
-                                                {#each ownSteps as step}
+                                            {#if allSteps.length > 0}
+                                                {#each allSteps as step}
                                                     {#if step.type === "thinking"}
                                                         <div class="border-l-2 border-text-400/30 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
                                                             {step.text}

@@ -14,18 +14,10 @@ export const POST: RequestHandler = async ({ request }) => {
     const result = await exa.search(query, {
         numResults: 5,
         type: "auto",
-        contents: {
-            highlights: {
-                maxCharacters: 4000,
-            },
-        },
     });
 
     const formatted = result.results
-        .map((r, i) => {
-            const highlights = r.highlights?.join("\n") ?? "";
-            return `[${i + 1}] ${r.title}\n${r.url}\n${highlights}`;
-        })
+        .map((r, i) => `[${i + 1}] ${r.title}\n${r.url}`)
         .join("\n\n");
 
     return new Response(formatted, {
