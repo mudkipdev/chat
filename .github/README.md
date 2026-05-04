@@ -13,6 +13,7 @@ Run the Docker image instead to have the sandboxed container tool available.
 - [X] Sending messages and streaming responses
 - [X] Choosing between multiple models running locally
 - [X] Saving conversations
+- [X] Deleting conversations
 - [X] Extended thinking for better answers
 - [X] Image uploads
 - [X] Web search

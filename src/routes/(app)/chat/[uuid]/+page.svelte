@@ -8,8 +8,43 @@
     import Markdown from "$lib/components/Markdown.svelte";
     import MessageActions from "$lib/components/MessageActions.svelte";
     import PromptBox from "$lib/components/PromptBox.svelte";
-    import { sandboxState, chats, loadChat, retryLast, streamReply, type Chat } from "$lib/chats.svelte";
+    import { sandboxState, chats, loadChat, retryLast, streamReply, type Chat, type Message } from "$lib/chats.svelte";
     import { globalState } from "$lib/state.svelte";
+
+    function isRunAnchor(messages: Message[], i: number): boolean {
+        const m = messages[i];
+        if (m.role !== "assistant") return false;
+        if (m.content || m.error) return true;
+        for (let j = i + 1; j < messages.length; j++) {
+            const n = messages[j];
+            if (n.role === "tool") continue;
+            return false;
+        }
+        return true;
+    }
+
+    function getMergedSteps(messages: Message[], i: number) {
+        let runStart = i;
+        for (let j = i - 1; j >= 0; j--) {
+            const n = messages[j];
+            if (n.role === "tool") continue;
+            if (n.role === "user") break;
+            if (n.role === "assistant") {
+                if (n.content || n.error) break;
+                runStart = j;
+            }
+        }
+        const result: NonNullable<Message["steps"]> = [];
+        for (let k = runStart; k <= i; k++) {
+            const n = messages[k];
+            if (n.role !== "assistant") continue;
+            const prevAssistant = messages.slice(0, k).findLast((m) => m.role === "assistant");
+            const prevSteps = prevAssistant?.steps?.length ?? 0;
+            const ownSteps = (n.steps ?? []).slice(prevSteps);
+            result.push(...ownSteps);
+        }
+        return result;
+    }
 
     const chatId = $derived(page.params.uuid!);
     const chat = $derived(chats[chatId]);
@@ -65,7 +100,8 @@
             {#if chat}
                 {#each chat.messages as message, index (index)}
                     {@const isLastAssistant = message.role === "assistant" && !message.tool_calls?.length}
-                    {@const allSteps = isLastAssistant ? (message.steps ?? []) : []}
+                    {@const isAnchor = isRunAnchor(chat.messages, index)}
+                    {@const mergedSteps = isAnchor ? getMergedSteps(chat.messages, index) : []}
                     {#if message.role === "tool"}
                         <!-- tool results are internal context, not displayed -->
                     {:else if message.role === "user"}
@@ -87,7 +123,7 @@
                                 </div>
                             {/if}
 
-                            {#if allSteps.length > 0 || (isLastAssistant && message.thinking && !message.steps)}
+                            {#if mergedSteps.length > 0 || (isAnchor && message.thinking && !message.steps)}
                                 {@const isThinking = message.done === false && !message.content}
                                 <div class="mb-3 font-sans">
                                     <button
@@ -120,8 +156,8 @@
                                             transition:slide={{ duration: 200, easing: cubicOut }}
                                             class="mt-2 ml-1.5 overflow-visible"
                                         >
-                                            {#if allSteps.length > 0}
-                                                {#each allSteps as step}
+                                            {#if mergedSteps.length > 0}
+                                                {#each mergedSteps as step}
                                                     {#if step.type === "thinking"}
                                                         <div class="border-l-2 border-text-400/30 pl-5 py-1 whitespace-pre-wrap text-sm text-text-400">
                                                             {step.text}
